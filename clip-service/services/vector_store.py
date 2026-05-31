@@ -51,14 +51,14 @@ class VectorStore:
     def search(
         self,
         query_vec: np.ndarray,
-        search_in: str,
+        target_post_type: str,
         top_k: int = 10,
         threshold: float = 0.5,
     ) -> list[dict]:
         """
-        Run cosine similarity search.
-
-        Use IMAGE to search found-post images or TEXT to search lost-post text.
+        Run cosine similarity search against active posts.
+        
+        Filter by target_post_type ('LOST', 'FOUND', or 'ALL').
         """
         vec_str = "[" + ",".join(f"{value:.8f}" for value in query_vec) + "]"
         with self.conn:
@@ -67,17 +67,17 @@ class VectorStore:
             ) as cursor:
                 cursor.execute(
                     """
-                    SELECT ce.id, ce.post_id, ce.image_id, ce.source_type,
+                    SELECT ce.id, ce.post_id, ce.image_id, ce.source_type, p.type as post_type,
                            1 - (ce.embedding <=> %s::vector) AS score
                     FROM clip_embeddings ce
                     JOIN posts p ON p.id = ce.post_id
-                    WHERE ce.source_type = %s
-                      AND p.status = 'ACTIVE'
+                    WHERE p.status = 'ACTIVE'
+                      AND (%s = 'ALL' OR p.type = %s)
                       AND 1 - (ce.embedding <=> %s::vector) >= %s
                     ORDER BY ce.embedding <=> %s::vector
                     LIMIT %s
                     """,
-                    (vec_str, search_in, vec_str, threshold, vec_str, top_k),
+                    (vec_str, target_post_type, target_post_type, vec_str, threshold, vec_str, top_k),
                 )
                 return [dict(row) for row in cursor.fetchall()]
 

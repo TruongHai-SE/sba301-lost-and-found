@@ -32,18 +32,26 @@ class EmbedImageRequest(BaseModel):
     post_id: int
     image_url: str
     image_id: int | None = None
+    post_type: Literal["LOST", "FOUND"] = Field(
+        ..., description="The type of the post being embedded (LOST or FOUND). Used to auto-match against the opposite type."
+    )
 
 
 class EmbedTextRequest(BaseModel):
     post_id: int
     text: str
     translate: bool = True
+    post_type: Literal["LOST", "FOUND"] = Field(
+        ..., description="The type of the post being embedded (LOST or FOUND). Used to auto-match against the opposite type."
+    )
 
 
 class SearchRequest(BaseModel):
     query_text: str | None = None
     query_image_url: str | None = None
-    search_in: Literal["IMAGE", "TEXT"] = "IMAGE"
+    target_post_type: Literal["LOST", "FOUND", "ALL"] = Field(
+        default="ALL", description="Filter results by post type. Use 'LOST' to search lost items, 'FOUND' for found items, or 'ALL' for both."
+    )
     top_k: int = Field(default=10, gt=0, le=100)
     threshold: float = Field(default=0.5, ge=-1, le=1)
 
@@ -51,9 +59,9 @@ class SearchRequest(BaseModel):
 # Routes
 @app.post("/api/clip/embed-and-index/image")
 async def embed_image(req: EmbedImageRequest):
-    """Encode image, store vector, and auto reverse-match lost posts."""
+    """Encode image, store vector, and auto cross-match with opposite post type."""
     try:
-        result = svc.embed_and_index_image(req.post_id, req.image_url, req.image_id)
+        result = svc.embed_and_index_image(req.post_id, req.image_url, req.post_type, req.image_id)
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -61,9 +69,9 @@ async def embed_image(req: EmbedImageRequest):
 
 @app.post("/api/clip/embed-and-index/text")
 async def embed_text(req: EmbedTextRequest):
-    """Encode text, store vector, and auto forward-match found posts."""
+    """Encode text, store vector, and auto cross-match with opposite post type."""
     try:
-        result = svc.embed_and_index_text(req.post_id, req.text, req.translate)
+        result = svc.embed_and_index_text(req.post_id, req.text, req.post_type, req.translate)
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -78,7 +86,7 @@ async def search(req: SearchRequest):
         results = svc.search(
             query_text=req.query_text,
             query_image_url=req.query_image_url,
-            search_in=req.search_in,
+            target_post_type=req.target_post_type,
             top_k=req.top_k,
             threshold=req.threshold,
         )

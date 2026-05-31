@@ -1,0 +1,35 @@
+# ===== Java / Spring Boot =====
+backend/target/
+backend/*.jar
+backend/.classpath
+backend/.factorypath
+backend/.project
+backend/.settings/
+
+# ===== Python =====
+**/__pycache__/
+**/*.pyc
+clip-service/.venv/
+clip-service/venv/
+clip-service/.pytest_cache/
+
+# ===== ONNX Model (download separately) =====
+.local/
+clip-service/clip_onnx_large_model/
+clip-service/yolov8n.pt
+
+# ===== IDE =====
+.idea/
+.vscode/
+*.iml
+
+# ===== Environment =====
+.env
+*.log
+
+# ===== OS =====
+.DS_Store
+Thumbs.db
+
+# ===== Docker =====
+docker-data/

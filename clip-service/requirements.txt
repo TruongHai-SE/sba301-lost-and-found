@@ -1,0 +1,25 @@
+# CLIP Service - Lost & Found
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+pydantic-settings>=2.4.0
+python-dotenv>=1.0.1
+
+# CLIP ONNX
+transformers>=4.44.0
+huggingface-hub>=0.34.0
+optimum[onnxruntime]>=1.21.0
+onnxruntime>=1.24.0
+
+# Image processing
+Pillow>=11.0.0
+requests>=2.32.0
+
+# YOLO
+ultralytics>=8.2.0
+
+# Translation
+deep-translator>=1.11.4
+
+# PostgreSQL + pgvector
+psycopg2-binary>=2.9.9
+numpy>=2.0.0

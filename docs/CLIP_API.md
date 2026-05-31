@@ -33,7 +33,8 @@ POST /api/clip/embed-and-index/text
 {
   "post_id": 1,
   "text": "brown leather wallet with student card",
-  "translate": false
+  "translate": false,
+  "post_type": "LOST"
 }
 ```
 
@@ -50,7 +51,8 @@ For direct Swagger testing:
 ```json
 {
   "post_id": 3,
-  "image_url": "https://example.com/public-image.jpg"
+  "image_url": "https://example.com/public-image.jpg",
+  "post_type": "FOUND"
 }
 ```
 
@@ -60,7 +62,8 @@ For future backend integration:
 {
   "post_id": 3,
   "image_id": 5,
-  "image_url": "https://res.cloudinary.com/.../image.jpg"
+  "image_url": "https://res.cloudinary.com/.../image.jpg",
+  "post_type": "FOUND"
 }
 ```
 
@@ -74,23 +77,23 @@ send `image_id: 0`.
 POST /api/clip/search
 ```
 
-Search indexed lost-post text:
+Search against FOUND posts:
 
 ```json
 {
   "query_text": "brown leather wallet",
-  "search_in": "TEXT",
+  "target_post_type": "FOUND",
   "top_k": 10,
   "threshold": 0
 }
 ```
 
-Search indexed found-post images:
+Search against LOST posts:
 
 ```json
 {
   "query_image_url": "https://example.com/public-image.jpg",
-  "search_in": "IMAGE",
+  "target_post_type": "LOST",
   "top_k": 10,
   "threshold": 0
 }
@@ -98,7 +101,7 @@ Search indexed found-post images:
 
 | Parameter | Meaning |
 | --- | --- |
-| `search_in` | `"TEXT"` searches text vectors. `"IMAGE"` searches image vectors. |
+| `target_post_type` | `"FOUND"` searches in found posts. `"LOST"` searches in lost posts. `"ALL"` searches both. |
 | `top_k` | Maximum number of results returned after filtering. |
 | `threshold` | Minimum cosine similarity. Use `0` for inspection and `0.5` for stricter matching. |
 | `query_text` | Text query. |

@@ -1,6 +1,8 @@
 # ===== Java / Spring Boot =====
 backend/target/
 backend/*.jar
+backend/*.war
+backend/bin/
 backend/.classpath
 backend/.factorypath
 backend/.project
@@ -9,8 +11,11 @@ backend/.settings/
 # ===== Python =====
 **/__pycache__/
 **/*.pyc
+**/*.pyo
+**/.mypy_cache/
 clip-service/.venv/
 clip-service/venv/
+clip-service/env/
 clip-service/.pytest_cache/
 
 # ===== ONNX Model (download separately) =====
@@ -29,7 +34,9 @@ clip-service/yolov8n.pt
 
 # ===== OS =====
 .DS_Store
+._*
 Thumbs.db
+desktop.ini
 
 # ===== Docker =====
 docker-data/

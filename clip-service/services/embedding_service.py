@@ -20,9 +20,9 @@ class EmbeddingService:
 
     # Public methods
     def embed_and_index_image(
-        self, post_id: int, image_url: str, image_id: int | None = None
+        self, post_id: int, image_url: str, post_type: str, image_id: int | None = None
     ) -> dict:
-        """Download image, crop, encode, store, and match lost posts."""
+        """Download image, crop, encode, store, and match against opposite post type."""
         img = self._download_image(image_url)
         cropped = self.yolo.crop_main_object(img)
         embedding = self.clip.encode_image(cropped)
@@ -34,15 +34,16 @@ class EmbeddingService:
             image_id=image_id,
         )
 
-        # Reverse match: image vector searches lost-post text embeddings.
-        matches = self._match(embedding, search_in="TEXT")
+        # Cross match: LOST searches FOUND, and FOUND searches LOST
+        target = "FOUND" if post_type == "LOST" else "LOST"
+        matches = self._match(embedding, target_post_type=target)
 
         return {"embedding_id": emb_id, "dimension": 768, "matches": matches}
 
     def embed_and_index_text(
-        self, post_id: int, text: str, translate: bool = True
+        self, post_id: int, text: str, post_type: str, translate: bool = True
     ) -> dict:
-        """Encode text, store the vector, and match found posts."""
+        """Encode text, store the vector, and match against opposite post type."""
         embedding = self.clip.encode_text(text, translate=translate)
 
         emb_id = self.store.upsert(
@@ -52,8 +53,9 @@ class EmbeddingService:
             image_id=None,
         )
 
-        # Forward match: text vector searches found-post image embeddings.
-        matches = self._match(embedding, search_in="IMAGE")
+        # Cross match: LOST searches FOUND, and FOUND searches LOST
+        target = "FOUND" if post_type == "LOST" else "LOST"
+        matches = self._match(embedding, target_post_type=target)
 
         return {"embedding_id": emb_id, "dimension": 768, "matches": matches}
 
@@ -61,7 +63,7 @@ class EmbeddingService:
         self,
         query_text: str | None = None,
         query_image_url: str | None = None,
-        search_in: str = "IMAGE",
+        target_post_type: str = "ALL",
         top_k: int = 10,
         threshold: float | None = None,
     ) -> list[dict]:
@@ -79,7 +81,7 @@ class EmbeddingService:
         else:
             return []
 
-        return self._match(vec, search_in=search_in, top_k=top_k, threshold=threshold)
+        return self._match(vec, target_post_type=target_post_type, top_k=top_k, threshold=threshold)
 
     def delete_post_embeddings(self, post_id: int) -> int:
         return self.store.delete_by_post(post_id)
@@ -88,14 +90,14 @@ class EmbeddingService:
     def _match(
         self,
         query_vec: np.ndarray,
-        search_in: str,
+        target_post_type: str,
         top_k: int = 10,
         threshold: float | None = None,
     ) -> list[dict]:
         threshold = (
             settings.clip_match_threshold if threshold is None else threshold
         )
-        results = self.store.search(query_vec, search_in, top_k, threshold)
+        results = self.store.search(query_vec, target_post_type, top_k, threshold)
 
         for result in results:
             score = float(result["score"])

@@ -57,7 +57,7 @@ class SearchRequest(BaseModel):
 
 
 # Routes
-@app.post("/api/clip/embed-and-index/image")
+@app.post("/api/v1/embeddings/image")
 async def embed_image(req: EmbedImageRequest):
     """Encode image, store vector, and auto cross-match with opposite post type."""
     try:
@@ -67,7 +67,7 @@ async def embed_image(req: EmbedImageRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/api/clip/embed-and-index/text")
+@app.post("/api/v1/embeddings/text")
 async def embed_text(req: EmbedTextRequest):
     """Encode text, store vector, and auto cross-match with opposite post type."""
     try:
@@ -77,7 +77,7 @@ async def embed_text(req: EmbedTextRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/api/clip/search")
+@app.post("/api/v1/search")
 async def search(req: SearchRequest):
     """Manually search by text or image URL."""
     if not req.query_text and not req.query_image_url:
@@ -95,14 +95,14 @@ async def search(req: SearchRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.delete("/api/clip/embeddings/{post_id}")
+@app.delete("/api/v1/embeddings/posts/{post_id}")
 async def delete_embeddings(post_id: int):
     """Delete all vectors for a post."""
     count = svc.delete_post_embeddings(post_id)
     return {"status": "deleted", "count": count}
 
 
-@app.get("/api/clip/health")
+@app.get("/api/v1/health")
 async def health():
     """Check service health."""
     return {

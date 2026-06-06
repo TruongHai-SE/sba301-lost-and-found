@@ -20,13 +20,13 @@ ORDER BY id;
 ### Health
 
 ```text
-GET /api/clip/health
+GET /api/v1/health
 ```
 
 ### Index Lost-Post Text
 
 ```text
-POST /api/clip/embed-and-index/text
+POST /api/v1/embeddings/text
 ```
 
 ```json
@@ -43,7 +43,7 @@ POST /api/clip/embed-and-index/text
 ### Index Found-Post Image
 
 ```text
-POST /api/clip/embed-and-index/image
+POST /api/v1/embeddings/image
 ```
 
 For direct Swagger testing:
@@ -74,7 +74,7 @@ send `image_id: 0`.
 ### Search
 
 ```text
-POST /api/clip/search
+POST /api/v1/search
 ```
 
 Search against FOUND posts:
@@ -110,7 +110,7 @@ Search against LOST posts:
 ### Delete Post Embeddings
 
 ```text
-DELETE /api/clip/embeddings/{post_id}
+DELETE /api/v1/embeddings/posts/{post_id}
 ```
 
 This deletes every CLIP vector linked to the supplied post.

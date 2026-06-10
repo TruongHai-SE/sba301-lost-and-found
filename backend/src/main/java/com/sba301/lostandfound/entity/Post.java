@@ -15,9 +15,18 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "posts")
+@Getter
+@Builder
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class Post {
 
     @Id
@@ -62,55 +71,4 @@ public class Post {
 
     @Column(name = "delete_at")
     private LocalDateTime deleteAt;
-
-    protected Post() {
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public User getUser() {
-        return user;
-    }
-
-    public Location getLocation() {
-        return location;
-    }
-
-    public Image getImage() {
-        return image;
-    }
-
-    public String getTitle() {
-        return title;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public PostType getType() {
-        return type;
-    }
-
-    public LocalDateTime getEventTime() {
-        return eventTime;
-    }
-
-    public LocalDateTime getCreateAt() {
-        return createAt;
-    }
-
-    public PostStatus getStatus() {
-        return status;
-    }
-
-    public HidePostType getHidePostType() {
-        return hidePostType;
-    }
-
-    public LocalDateTime getDeleteAt() {
-        return deleteAt;
-    }
 }

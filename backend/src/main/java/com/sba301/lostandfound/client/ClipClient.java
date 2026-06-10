@@ -1,9 +1,11 @@
 package com.sba301.lostandfound.client;
 
+import com.sba301.lostandfound.dto.ClipEmbedResponse;
+import com.sba301.lostandfound.dto.ClipHealthApiResponse;
+import com.sba301.lostandfound.dto.EmbedImageRequest;
+import com.sba301.lostandfound.dto.EmbedTextRequest;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
-import org.springframework.web.client.RestClientException;
-import com.sba301.lostandfound.dto.ClipHealthApiResponse;
 
 @Component
 public class ClipClient {
@@ -21,5 +23,21 @@ public class ClipClient {
             .body(ClipHealthApiResponse.class);
 
         return response == null ? "unavailable" : response.status();
+    }
+
+    public ClipEmbedResponse embedText(Long postId, String text, String postType) {
+        return restClient.post()
+            .uri("/api/v1/embeddings/text")
+            .body(new EmbedTextRequest(postId, text, true, postType))
+            .retrieve()
+            .body(ClipEmbedResponse.class);
+    }
+
+    public ClipEmbedResponse embedImage(Long postId, String imageUrl, Long imageId, String postType) {
+        return restClient.post()
+            .uri("/api/v1/embeddings/image")
+            .body(new EmbedImageRequest(postId, imageUrl, imageId, postType))
+            .retrieve()
+            .body(ClipEmbedResponse.class);
     }
 }

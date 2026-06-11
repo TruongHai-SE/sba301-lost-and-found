@@ -27,9 +27,32 @@ spring:
     multipart:
       max-file-size: 10MB
       max-request-size: 10MB
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
 
 server:
   port: ${SERVER_PORT:8080}
+
+jwt:
+  secret: ${JWT_SECRET}
+  access-token-expiration: ${JWT_ACCESS_EXPIRATION:1800000}
+  refresh-token-expiration: ${JWT_REFRESH_EXPIRATION:604800000}
+
+google:
+  client-id: ${GOOGLE_CLIENT_ID}
+
+app:
+  cors:
+    allowed-origins: ${CORS_ORIGINS:*}
+  cleanup:
+    initial-delay: ${CLEANUP_INITIAL_DELAY:5000}
+    interval: ${CLEANUP_INTERVAL:3600000}
 
 services:
   clip:

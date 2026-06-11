@@ -43,6 +43,22 @@ public class User {
     protected User() {
     }
 
+    public static User createUser(String name, String mail, String encodedPassword,
+                                  String phone, UserType type) {
+        User user = new User();
+        user.name = name;
+        user.mail = mail;
+        user.password = encodedPassword;
+        user.phone = phone;
+        user.type = type;
+        user.createAt = LocalDate.now();
+        return user;
+    }
+
+    public void updatePassword(String encodedPassword) {
+        this.password = encodedPassword;
+    }
+
     public Long getId() {
         return id;
     }

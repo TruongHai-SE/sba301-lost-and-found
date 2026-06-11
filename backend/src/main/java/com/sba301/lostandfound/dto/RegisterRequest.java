@@ -31,6 +31,7 @@ public class RegisterRequest {
     private String password;
 
     @Size(max = 10)
+    @Pattern(regexp = "^$|^\\d{10}$", message = "Phone must be 10 digits")
     @Schema(example = "0901234567")
     private String phone;
 }

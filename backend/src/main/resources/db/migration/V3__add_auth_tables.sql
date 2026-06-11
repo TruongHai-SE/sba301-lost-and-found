@@ -7,6 +7,8 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
     created_at  TIMESTAMP NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON refresh_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expires_at ON refresh_tokens(expires_at);
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_revoked ON refresh_tokens(revoked);
 
 CREATE TABLE IF NOT EXISTS otp_tokens (
     id          BIGSERIAL PRIMARY KEY,
@@ -18,3 +20,5 @@ CREATE TABLE IF NOT EXISTS otp_tokens (
     created_at  TIMESTAMP NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_otp_tokens_user ON otp_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_otp_tokens_expires_at ON otp_tokens(expires_at);
+CREATE INDEX IF NOT EXISTS idx_otp_tokens_used ON otp_tokens(used);

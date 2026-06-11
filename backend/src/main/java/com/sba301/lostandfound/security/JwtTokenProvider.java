@@ -27,11 +27,11 @@ public class JwtTokenProvider {
     }
 
     public String generateAccessToken(CustomUserDetails userDetails) {
-        return buildToken(userDetails, accessTokenExpiration);
+        return buildToken(userDetails, accessTokenExpiration, "ACCESS");
     }
 
     public String generateRefreshToken(CustomUserDetails userDetails) {
-        return buildToken(userDetails, refreshTokenExpiration);
+        return buildToken(userDetails, refreshTokenExpiration, "REFRESH");
     }
 
     public boolean validateToken(String token) {
@@ -47,16 +47,21 @@ public class JwtTokenProvider {
         return parseClaims(token).getSubject();
     }
 
+    public String getTokenTypeFromToken(String token) {
+        return (String) parseClaims(token).get("tokenType");
+    }
+
     public long getRefreshTokenExpirationSeconds() {
         return refreshTokenExpiration / 1000;
     }
 
-    private String buildToken(CustomUserDetails userDetails, long expirationMs) {
+    private String buildToken(CustomUserDetails userDetails, long expirationMs, String tokenType) {
         Date now = new Date();
         return Jwts.builder()
                 .subject(userDetails.getUsername())
                 .claim("userId", userDetails.getUser().getId())
                 .claim("role", userDetails.getUser().getType().name())
+                .claim("tokenType", tokenType)
                 .id(java.util.UUID.randomUUID().toString())
                 .issuedAt(now)
                 .expiration(new Date(now.getTime() + expirationMs))

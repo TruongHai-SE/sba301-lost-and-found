@@ -28,10 +28,14 @@ public class AuthController {
 
     private final AuthService authService;
     private final JwtTokenProvider jwtTokenProvider;
+    private final boolean secureCookie;
 
-    public AuthController(AuthService authService, JwtTokenProvider jwtTokenProvider) {
+    public AuthController(AuthService authService,
+                          JwtTokenProvider jwtTokenProvider,
+                          @org.springframework.beans.factory.annotation.Value("${app.cookie.secure:false}") boolean secureCookie) {
         this.authService = authService;
         this.jwtTokenProvider = jwtTokenProvider;
+        this.secureCookie = secureCookie;
     }
 
     @PostMapping("/register")
@@ -64,7 +68,7 @@ public class AuthController {
         String refreshToken = CookieUtils.extractRefreshToken(request);
         authService.logout(refreshToken);
 
-        ResponseCookie deleteCookie = CookieUtils.deleteRefreshTokenCookie();
+        ResponseCookie deleteCookie = CookieUtils.deleteRefreshTokenCookie(secureCookie);
         return ResponseEntity.noContent()
                 .header(HttpHeaders.SET_COOKIE, deleteCookie.toString())
                 .build();
@@ -85,7 +89,8 @@ public class AuthController {
     private ResponseEntity<AuthResponse> buildAuthResponse(AuthResponse response, HttpStatus status) {
         ResponseCookie cookie = CookieUtils.createRefreshTokenCookie(
                 response.getRefreshToken(),
-                jwtTokenProvider.getRefreshTokenExpirationSeconds());
+                jwtTokenProvider.getRefreshTokenExpirationSeconds(),
+                secureCookie);
         return ResponseEntity.status(status)
                 .header(HttpHeaders.SET_COOKIE, cookie.toString())
                 .body(response);

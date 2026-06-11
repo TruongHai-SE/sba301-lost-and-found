@@ -15,12 +15,21 @@ public class EmailServiceImpl implements EmailService {
 
     private final JavaMailSender mailSender;
 
+    @org.springframework.beans.factory.annotation.Value("${spring.mail.username:}")
+    private String mailUsername;
+
     public EmailServiceImpl(JavaMailSender mailSender) {
         this.mailSender = mailSender;
     }
 
     @Override
     public void sendOtpEmail(String toEmail, String otpCode, String purpose) {
+        if (!org.springframework.util.StringUtils.hasText(mailUsername)) {
+            log.warn("SMTP username is empty (not configured). Skipping sending OTP email. " +
+                    "For local testing, retrieve OTP code directly from the DB log. Code: {}", otpCode);
+            return;
+        }
+
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
@@ -33,7 +42,8 @@ public class EmailServiceImpl implements EmailService {
             mailSender.send(message);
             log.info("OTP email successfully sent to {}", toEmail);
         } catch (Exception e) {
-            log.error("Failed to send OTP email to {}: {}. OTP was saved to the database for testing.", toEmail, e.getMessage());
+            log.error("Failed to send OTP email to {}", toEmail, e);
+            throw new IllegalStateException("Failed to send OTP email", e);
         }
     }
 

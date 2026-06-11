@@ -12,20 +12,20 @@ public final class CookieUtils {
     }
 
     // HttpOnly + SameSite=Lax to prevent XSS token theft
-    public static ResponseCookie createRefreshTokenCookie(String token, long maxAgeSeconds) {
+    public static ResponseCookie createRefreshTokenCookie(String token, long maxAgeSeconds, boolean secure) {
         return ResponseCookie.from(REFRESH_TOKEN_COOKIE, token)
                 .httpOnly(true)
-                .secure(false) // Set true in production (HTTPS)
+                .secure(secure)
                 .path("/")
                 .maxAge(maxAgeSeconds)
                 .sameSite("Lax")
                 .build();
     }
 
-    public static ResponseCookie deleteRefreshTokenCookie() {
+    public static ResponseCookie deleteRefreshTokenCookie(boolean secure) {
         return ResponseCookie.from(REFRESH_TOKEN_COOKIE, "")
                 .httpOnly(true)
-                .secure(false)
+                .secure(secure)
                 .path("/")
                 .maxAge(0)
                 .sameSite("Lax")

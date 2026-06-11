@@ -159,7 +159,7 @@ public class AuthServiceImpl implements AuthService {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Refresh token is missing");
         }
 
-        if (!jwtTokenProvider.validateToken(refreshTokenStr)) {
+        if (!jwtTokenProvider.validateToken(refreshTokenStr) || !"REFRESH".equals(jwtTokenProvider.getTokenTypeFromToken(refreshTokenStr))) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid refresh token");
         }
 

@@ -35,6 +35,7 @@ public class TokenCleanupScheduler {
                     deletedRefreshTokens, deletedOtpTokens);
         } catch (Exception e) {
             log.error("Failed to run periodic token cleanup", e);
+            throw e;
         }
     }
 }

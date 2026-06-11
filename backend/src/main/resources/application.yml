@@ -40,7 +40,7 @@ server:
   port: ${SERVER_PORT:8080}
 
 jwt:
-  secret: ${JWT_SECRET:dGhpc0lzQVZlcnlMb25nU2VjcmV0S2V5Rm9yRGV2ZWxvcG1lbnRPbmx5UGxlYXNlQ2hhbmdlSW5Qcm9kdWN0aW9u}
+  secret: ${JWT_SECRET}
   access-token-expiration: ${JWT_ACCESS_EXPIRATION:900000}
   refresh-token-expiration: ${JWT_REFRESH_EXPIRATION:604800000}
 

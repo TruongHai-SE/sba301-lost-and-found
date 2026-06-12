@@ -10,7 +10,7 @@ MODEL_ROOT = REPO_ROOT / ".local" / "models"
 CLIP_DIR = MODEL_ROOT / "clip_onnx_large_model"
 YOLO_PATH = MODEL_ROOT / "yolov8n.pt"
 
-CLIP_REPO = "openai/clip-vit-large-patch14"
+CLIP_REPO = "Xenova/clip-vit-large-patch14"
 YOLO_URL = (
     "https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8n.pt"
 )

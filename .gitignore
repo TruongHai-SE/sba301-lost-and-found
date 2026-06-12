@@ -44,3 +44,7 @@ docker-data/
 # Editor rules
 .cursorrules
 .clauderules
+
+# Local notes
+flow.md
+

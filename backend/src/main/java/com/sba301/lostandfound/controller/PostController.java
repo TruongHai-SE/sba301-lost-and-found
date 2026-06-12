@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import com.sba301.lostandfound.dto.CreateFoundPostRequest;
 
 @RestController
 @RequestMapping("/api/v1/posts")
@@ -26,5 +27,11 @@ public class PostController {
     @ResponseStatus(HttpStatus.CREATED)
     public CreatePostResponse createLostPost(@Valid @ModelAttribute CreateLostPostRequest request) {
         return postService.createLostPost(request);
+    }
+
+    @PostMapping(value = "/found", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @ResponseStatus(HttpStatus.CREATED)
+    public CreatePostResponse createFoundPost(@Valid @ModelAttribute CreateFoundPostRequest request) {
+        return postService.createFoundPost(request);
     }
 }

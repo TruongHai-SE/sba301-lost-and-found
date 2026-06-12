@@ -10,9 +10,19 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "users")
+@Getter
+@Builder
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class User {
 
     @Id
@@ -38,40 +48,5 @@ public class User {
     private String socialLink;
 
     @Column(name = "create_at")
-    private LocalDate createAt;
-
-    protected User() {
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public UserType getType() {
-        return type;
-    }
-
-    public String getPhone() {
-        return phone;
-    }
-
-    public String getMail() {
-        return mail;
-    }
-
-    public String getSocialLink() {
-        return socialLink;
-    }
-
-    public LocalDate getCreateAt() {
-        return createAt;
-    }
+    private LocalDate createAt; // Changed back to LocalDate to match DB
 }

@@ -21,6 +21,7 @@
         <java.version>21</java.version>
         <springdoc.version>3.0.3</springdoc.version>
         <cloudinary.version>1.39.0</cloudinary.version>
+        <lombok.version>1.18.40</lombok.version>
     </properties>
 
     <dependencies>
@@ -68,6 +69,7 @@
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
+            <version>${lombok.version}</version>
             <optional>true</optional>
         </dependency>
 

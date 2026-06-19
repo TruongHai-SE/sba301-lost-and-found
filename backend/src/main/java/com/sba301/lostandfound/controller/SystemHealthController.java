@@ -1,5 +1,6 @@
 package com.sba301.lostandfound.controller;
 
+import com.sba301.lostandfound.dto.ApiResponse;
 import com.sba301.lostandfound.dto.SystemHealthResponse;
 import com.sba301.lostandfound.service.SystemHealthService;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,7 +18,8 @@ public class SystemHealthController {
     }
 
     @GetMapping("/health")
-    public SystemHealthResponse health() {
-        return SystemHealthResponse.from(systemHealthService.getHealth());
+    public ApiResponse<SystemHealthResponse> health() {
+        SystemHealthResponse response = SystemHealthResponse.from(systemHealthService.getHealth());
+        return ApiResponse.success(response, "System health retrieved successfully");
     }
 }

@@ -1,5 +1,6 @@
 package com.sba301.lostandfound.controller;
 
+import com.sba301.lostandfound.dto.ApiResponse;
 import com.sba301.lostandfound.dto.AuthResponse;
 import com.sba301.lostandfound.dto.GoogleLoginRequest;
 import com.sba301.lostandfound.dto.LoginRequest;
@@ -12,7 +13,6 @@ import com.sba301.lostandfound.security.JwtTokenProvider;
 import com.sba301.lostandfound.service.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
-import java.util.Map;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
@@ -39,28 +39,28 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
+    public ResponseEntity<ApiResponse<AuthResponse>> register(@Valid @RequestBody RegisterRequest request) {
         AuthResponse response = authService.register(request);
-        return buildAuthResponse(response, HttpStatus.CREATED);
+        return buildAuthResponse(response, HttpStatus.CREATED, "User registered successfully");
     }
 
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
+    public ResponseEntity<ApiResponse<AuthResponse>> login(@Valid @RequestBody LoginRequest request) {
         AuthResponse response = authService.login(request);
-        return buildAuthResponse(response, HttpStatus.OK);
+        return buildAuthResponse(response, HttpStatus.OK, "Login successful");
     }
 
     @PostMapping("/google")
-    public ResponseEntity<AuthResponse> googleLogin(@Valid @RequestBody GoogleLoginRequest request) {
+    public ResponseEntity<ApiResponse<AuthResponse>> googleLogin(@Valid @RequestBody GoogleLoginRequest request) {
         AuthResponse response = authService.googleLogin(request);
-        return buildAuthResponse(response, HttpStatus.OK);
+        return buildAuthResponse(response, HttpStatus.OK, "Login successful");
     }
 
     @PostMapping("/refresh")
-    public ResponseEntity<RefreshTokenResponse> refreshToken(HttpServletRequest request) {
+    public ResponseEntity<ApiResponse<RefreshTokenResponse>> refreshToken(HttpServletRequest request) {
         String refreshToken = CookieUtils.extractRefreshToken(request);
         RefreshTokenResponse response = authService.refreshToken(refreshToken);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success(response, "Token refreshed successfully"));
     }
 
     @PostMapping("/logout")
@@ -75,24 +75,25 @@ public class AuthController {
     }
 
     @PostMapping("/forgot-password")
-    public ResponseEntity<Map<String, String>> forgotPassword(@Valid @RequestBody RequestOtpRequest request) {
+    public ResponseEntity<ApiResponse<Void>> forgotPassword(@Valid @RequestBody RequestOtpRequest request) {
         authService.requestForgotPasswordOtp(request);
-        return ResponseEntity.ok(Map.of("message", "OTP sent to your email"));
+        return ResponseEntity.ok(ApiResponse.success(null, "OTP sent to your email"));
     }
 
     @PostMapping("/reset-password")
-    public ResponseEntity<Map<String, String>> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+    public ResponseEntity<ApiResponse<Void>> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
         authService.resetPassword(request);
-        return ResponseEntity.ok(Map.of("message", "Password reset successfully"));
+        return ResponseEntity.ok(ApiResponse.success(null, "Password reset successfully"));
     }
 
-    private ResponseEntity<AuthResponse> buildAuthResponse(AuthResponse response, HttpStatus status) {
+    private ResponseEntity<ApiResponse<AuthResponse>> buildAuthResponse(AuthResponse response, HttpStatus status, String message) {
         ResponseCookie cookie = CookieUtils.createRefreshTokenCookie(
                 response.getRefreshToken(),
                 jwtTokenProvider.getRefreshTokenExpirationSeconds(),
                 secureCookie);
+        ApiResponse<AuthResponse> apiResponse = ApiResponse.success(status.value(), response, message);
         return ResponseEntity.status(status)
                 .header(HttpHeaders.SET_COOKIE, cookie.toString())
-                .body(response);
+                .body(apiResponse);
     }
 }

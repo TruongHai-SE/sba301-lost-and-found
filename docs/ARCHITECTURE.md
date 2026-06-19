@@ -1,102 +1,79 @@
-# Architecture
+# System Architecture
 
-## Components
+## Architecture Overview
+
+The SBA301 Lost and Found system uses a microservice-oriented layout combining a Java/Spring Boot business backend, a Python/FastAPI AI CLIP service, and a PostgreSQL database with pgvector extensions.
 
 ```text
-Client
-  |
-  v
-Spring Boot backend -----> FastAPI CLIP service
-  |                             |
-  +-------------+---------------+
-                |
-                v
-       PostgreSQL 16 + pgvector
+Client (Frontend)
+      |
+      v
+Spring Boot Backend (Port 8080) -------> FastAPI CLIP Service (Port 8000)
+      |                                           |
+      +---------------------+---------------------+
+                            |
+                            v
+                 PostgreSQL 16 + pgvector
 ```
 
-The Spring Boot backend owns business APIs and Flyway migrations. The CLIP
-service encodes text and images and stores vectors in `clip_embeddings`.
+---
 
-## Backend Clean Architecture
+## 3-Tier Layered Architecture
 
-The application class stays at the root package so Spring Boot scans the
-project without scanning unrelated libraries:
+The Java backend follows a standard, highly organized **3-Tier Layered Architecture** (Controller-Service-Repository). This pattern enforces separation of concerns, simplifies testing, and keeps dependencies clean.
+
+### Package Layout
 
 ```text
 com.sba301.lostandfound
-|-- LostAndFoundApplication.java
-|-- domain/
-|   `-- model/
-|-- application/
-|   |-- port/
-|   |   |-- in/
-|   |   `-- out/
-|   |-- result/
-|   `-- service/
-|-- infrastructure/
-|   |-- config/
-|   |-- integration/
-|   `-- persistence/
-|       |-- entity/
-|       `-- repository/
-`-- presentation/
-    `-- rest/
+|-- LostAndFoundApplication.java   (Main startup entry point)
+|-- controller/                     (REST controllers, API endpoints)
+|-- service/                        (Business logic interfaces & implementations)
+|-- repository/                     (Spring Data JPA repositories for DB access)
+|-- entity/                         (JPA persistence entities mapped to database tables)
+|-- dto/                            (Data Transfer Objects for request/response serialization)
+|-- client/                         (Feign/RestClient integrations to external services like CLIP)
+|-- security/                       (JWT filters, Token providers, Cookie extractors)
+|-- config/                         (Security configuration, CORS, general bean declarations)
+`-- scheduler/                      (Background cron jobs, e.g., expired token cleanup)
 ```
 
-Dependency direction:
+### Dependency Flow
+
+Dependencies flow unidirectional from the presentation layer downwards to the database access layer:
 
 ```text
-presentation ------> application <------ infrastructure
-                           |
-                           v
-                        domain
+[ Controller (presentation) ]
+             |
+             v
+  [ Service (business) ]
+             |
+             v
+[ Repository (persistence) ] <---> [ Entity ]
 ```
 
-Rules:
+* **Controller Layer**: Handles incoming HTTP requests, validates input parameters, and returns standardized unified responses (`ApiResponse<T>`).
+* **Service Layer**: Implements business transactions, orchestrates operations between multiple repositories, and calls the external `ClipClient` when AI vectorization is needed.
+* **Repository Layer**: Provides abstraction over database queries using Spring Data JPA.
+* **Entity Layer**: Represents the database schema models.
 
-- `domain/`: pure business types. No Spring, JPA, HTTP, or database imports.
-- `application/`: use cases and ports. No Spring, JPA, HTTP, or database
-  imports.
-- `infrastructure/`: framework adapters such as JPA entities, Spring Data
-  repositories, JDBC checks, FastAPI HTTP clients, and Spring configuration.
-- `presentation/`: REST controllers and HTTP request/response DTOs. Controllers
-  call input ports, not infrastructure classes.
+---
 
-## Adding a Feature
+## Database Schema & Migrations
 
-Example for post creation:
+Database structure is managed explicitly through **Flyway**:
 
-```text
-domain/model/Post.java
-application/port/in/CreatePostUseCase.java
-application/port/out/SavePostPort.java
-application/service/CreatePostService.java
-infrastructure/persistence/entity/PostJpaEntity.java
-infrastructure/persistence/repository/PostJpaRepository.java
-infrastructure/persistence/adapter/PostPersistenceAdapter.java
-presentation/rest/post/CreatePostRequest.java
-presentation/rest/post/PostController.java
-```
+1. **Flyway Migration Owner**: All database tables, extensions (like `vector`), and constraints are created via versioned SQL scripts in `src/main/resources/db/migration/`.
+2. **JPA Validation**: Hibernate is configured with `ddl-auto=validate`. Hibernate is strictly forbidden from creating or modifying tables at runtime to avoid schema drift.
+3. **Adding Schema Changes**:
+   * Add a new SQL file under `db/migration/` (e.g., `V4__add_new_table.sql`).
+   * Create/update the matching JPA `@Entity` class in `com.sba301.lostandfound.entity`.
+   * Restart the application to apply the migration automatically.
 
-Do not expose JPA entities from controllers. Map persistence entities to domain
-models inside an infrastructure adapter.
+---
 
-## Database Ownership
+## AI CLIP Search Flow
 
-There is one schema mechanism:
-
-1. Docker starts the `pgvector/pgvector:pg16` PostgreSQL image.
-2. Backend startup runs Flyway migrations from `classpath:db/migration`.
-3. Migration `V1__create_initial_schema.sql` enables the `vector` extension and
-   creates the application schema.
-4. Hibernate validates mappings using `ddl-auto=validate`.
-
-Do not add a second schema initializer such as root `init-db.sql`,
-`schema.sql`, or Hibernate `ddl-auto=update`.
-
-## CLIP Flow
-
-- Lost post text: encode text, store a `TEXT` vector, search `IMAGE` vectors.
-- Found post image: crop with YOLO, encode image, store an `IMAGE` vector,
-  search `TEXT` vectors.
-- PostgreSQL stores vectors as `vector(768)` and searches cosine similarity.
+1. **Lost Item Text Indexing**: When a user posts a lost item, Spring Boot extracts the description text, calls the FastAPI CLIP service to encode it into a `TEXT` embedding, and stores the 768-dimensional vector in `clip_embeddings`.
+2. **Found Item Image Indexing**: When a found item image is posted, the image is cropped via YOLOv8, encoded to an `IMAGE` embedding by the CLIP service, and stored in PostgreSQL.
+3. **Similarity Search**: Cosine similarity matches are computed inside PostgreSQL using `pgvector` to identify and link corresponding lost and found items.

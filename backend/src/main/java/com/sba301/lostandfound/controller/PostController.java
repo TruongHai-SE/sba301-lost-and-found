@@ -1,5 +1,6 @@
 package com.sba301.lostandfound.controller;
 
+import com.sba301.lostandfound.dto.CreateFoundPostRequest;
 import com.sba301.lostandfound.dto.ApiResponse;
 import com.sba301.lostandfound.dto.CreateLostPostRequest;
 import com.sba301.lostandfound.dto.CreatePostResponse;
@@ -28,5 +29,11 @@ public class PostController {
     public ApiResponse<CreatePostResponse> createLostPost(@Valid @ModelAttribute CreateLostPostRequest request) {
         CreatePostResponse response = postService.createLostPost(request);
         return ApiResponse.success(HttpStatus.CREATED.value(), response, "Create post successfully");
+    }
+
+    @PostMapping(value = "/found", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @ResponseStatus(HttpStatus.CREATED)
+    public CreatePostResponse createFoundPost(@Valid @ModelAttribute CreateFoundPostRequest request) {
+        return postService.createFoundPost(request);
     }
 }

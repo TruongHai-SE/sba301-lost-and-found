@@ -57,6 +57,11 @@ app:
 services:
   clip:
     base-url: ${CLIP_SERVICE_URL:http://localhost:8000}
+  ollama:
+    base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+    vision-model: ${OLLAMA_VISION_MODEL:qwen2.5vl}
+    timeout-seconds: ${OLLAMA_TIMEOUT_SECONDS:60}
+    enabled: ${OLLAMA_ENABLED:true}
   cloudinary:
     cloud-name: ${CLOUDINARY_CLOUD_NAME:}
     api-key: ${CLOUDINARY_API_KEY:}

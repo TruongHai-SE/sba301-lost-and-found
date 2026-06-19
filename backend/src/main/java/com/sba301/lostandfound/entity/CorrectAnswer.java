@@ -28,6 +28,14 @@ public class CorrectAnswer {
     protected CorrectAnswer() {
     }
 
+    /**
+     * Constructor tiện dụng cho code.
+     */
+    public CorrectAnswer(Verification verification, String answer) {
+        this.verification = verification;
+        this.answer = answer;
+    }
+
     public Long getId() {
         return id;
     }
@@ -38,5 +46,13 @@ public class CorrectAnswer {
 
     public String getAnswer() {
         return answer;
+    }
+
+    public void setVerification(Verification verification) {
+        this.verification = verification;
+    }
+
+    public void setAnswer(String answer) {
+        this.answer = answer;
     }
 }

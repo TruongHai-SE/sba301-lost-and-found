@@ -6,6 +6,7 @@ public record SystemHealthResponse(
     String backend,
     String database,
     String clip,
+    String ollama,
     Instant checkedAt
 ) {
     public static SystemHealthResponse from(SystemHealthResult result) {
@@ -13,6 +14,7 @@ public record SystemHealthResponse(
             result.backend(),
             result.database(),
             result.clip(),
+            result.ollama(),
             result.checkedAt()
         );
     }

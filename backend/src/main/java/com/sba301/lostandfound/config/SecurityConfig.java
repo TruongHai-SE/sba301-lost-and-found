@@ -25,12 +25,50 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     @Value("${app.cors.allowed-origins}")
     private String allowedOrigins;
 
     public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.objectMapper = new com.fasterxml.jackson.databind.ObjectMapper()
+                .registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule())
+                .configure(com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false);
+    }
+
+    @Bean
+    public org.springframework.security.web.AuthenticationEntryPoint authenticationEntryPoint() {
+        return (request, response, authException) -> {
+            response.setContentType(org.springframework.http.MediaType.APPLICATION_JSON_VALUE);
+            response.setStatus(jakarta.servlet.http.HttpServletResponse.SC_UNAUTHORIZED);
+            
+            com.sba301.lostandfound.dto.ApiResponse<Void> apiResponse = com.sba301.lostandfound.dto.ApiResponse.error(
+                    jakarta.servlet.http.HttpServletResponse.SC_UNAUTHORIZED,
+                    "Unauthorized: " + authException.getMessage(),
+                    request.getRequestURI(),
+                    null
+            );
+            
+            objectMapper.writeValue(response.getOutputStream(), apiResponse);
+        };
+    }
+
+    @Bean
+    public org.springframework.security.web.access.AccessDeniedHandler accessDeniedHandler() {
+        return (request, response, accessDeniedException) -> {
+            response.setContentType(org.springframework.http.MediaType.APPLICATION_JSON_VALUE);
+            response.setStatus(jakarta.servlet.http.HttpServletResponse.SC_FORBIDDEN);
+            
+            com.sba301.lostandfound.dto.ApiResponse<Void> apiResponse = com.sba301.lostandfound.dto.ApiResponse.error(
+                    jakarta.servlet.http.HttpServletResponse.SC_FORBIDDEN,
+                    "Access denied: " + accessDeniedException.getMessage(),
+                    request.getRequestURI(),
+                    null
+            );
+            
+            objectMapper.writeValue(response.getOutputStream(), apiResponse);
+        };
     }
 
     @Bean
@@ -54,9 +92,14 @@ public class SecurityConfig {
                     "/*.css",
                     "/*.js",
                     "/favicon.ico"
+                    "/error"
                 ).permitAll()
                 .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
+            )
+            .exceptionHandling(exceptions -> exceptions
+                .authenticationEntryPoint(authenticationEntryPoint())
+                .accessDeniedHandler(accessDeniedHandler())
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 

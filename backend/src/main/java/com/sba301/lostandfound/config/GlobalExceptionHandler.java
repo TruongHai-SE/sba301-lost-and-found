@@ -1,5 +1,7 @@
 package com.sba301.lostandfound.config;
 
+import com.sba301.lostandfound.controller.VerificationController.ClaimRejectedException;
+import com.sba301.lostandfound.dto.ClaimResponse;
 import java.util.HashMap;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
@@ -26,6 +28,15 @@ public class GlobalExceptionHandler {
                 "details", fieldErrors
         );
         return ResponseEntity.badRequest().body(body);
+    }
+
+    /**
+     * Claim bị reject (score < threshold). Trả 403 với body là ClaimResponse đầy đủ
+     * để FE hiển thị lý do + cho phép retry.
+     */
+    @ExceptionHandler(ClaimRejectedException.class)
+    public ResponseEntity<ClaimResponse> handleClaimRejected(ClaimRejectedException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ex.getResponse());
     }
 
     @ExceptionHandler(ResponseStatusException.class)

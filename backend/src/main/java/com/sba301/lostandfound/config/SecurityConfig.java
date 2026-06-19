@@ -47,7 +47,13 @@ public class SecurityConfig {
                     "/v3/api-docs/**",
                     "/actuator/health",
                     "/actuator/info",
-                    "/api/v1/system/**"
+                    "/api/v1/system/**",
+                    // Static files: Testing Web UI
+                    "/",
+                    "/index.html",
+                    "/*.css",
+                    "/*.js",
+                    "/favicon.ico"
                 ).permitAll()
                 .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                 .anyRequest().authenticated()

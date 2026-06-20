@@ -13,9 +13,20 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
 @Table(name = "match_requests")
+@Getter
+@Setter
+@Builder
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class MatchRequest {
 
     @Id
@@ -30,32 +41,10 @@ public class MatchRequest {
     @Column(length = 10)
     private MatchRequestStatus status;
 
+    @Builder.Default
     @Column(name = "create_at")
-    private LocalDateTime createAt;
+    private LocalDateTime createAt = LocalDateTime.now();
 
     @Column(columnDefinition = "text")
     private String message;
-
-    protected MatchRequest() {
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public User getUser() {
-        return user;
-    }
-
-    public MatchRequestStatus getStatus() {
-        return status;
-    }
-
-    public LocalDateTime getCreateAt() {
-        return createAt;
-    }
-
-    public String getMessage() {
-        return message;
-    }
 }

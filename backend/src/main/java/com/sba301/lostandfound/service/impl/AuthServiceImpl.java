@@ -11,6 +11,8 @@ import com.sba301.lostandfound.dto.RefreshTokenResponse;
 import com.sba301.lostandfound.dto.RegisterRequest;
 import com.sba301.lostandfound.dto.RequestOtpRequest;
 import com.sba301.lostandfound.dto.ResetPasswordRequest;
+import com.sba301.lostandfound.dto.SetupPasswordRequest;
+import com.sba301.lostandfound.dto.SetupPasswordResponse;
 import com.sba301.lostandfound.entity.OtpToken;
 import com.sba301.lostandfound.entity.RefreshToken;
 import com.sba301.lostandfound.entity.User;
@@ -86,13 +88,13 @@ public class AuthServiceImpl implements AuthService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Phone number already exists");
         }
 
-        User user = User.createUser(
-                request.getName(),
-                request.getMail(),
-                passwordEncoder.encode(request.getPassword()),
-                request.getPhone(),
-                UserType.USER
-        );
+        User user = User.builder()
+                .name(request.getName())
+                .mail(request.getMail())
+                .password(passwordEncoder.encode(request.getPassword()))
+                .phone(request.getPhone())
+                .type(UserType.USER)
+                .build();
         userRepository.save(user);
 
         return buildAuthResponseWithRefreshToken(user);
@@ -139,13 +141,11 @@ public class AuthServiceImpl implements AuthService {
 
         User user = userRepository.findByMail(email)
                 .orElseGet(() -> {
-                    User newUser = User.createUser(
-                            name != null ? name : email,
-                            email,
-                            null,
-                            null,
-                            UserType.USER
-                    );
+                    User newUser = User.builder()
+                            .name(name != null ? name : email)
+                            .mail(email)
+                            .type(UserType.USER)
+                            .build();
                     return userRepository.save(newUser);
                 });
 
@@ -213,11 +213,34 @@ public class AuthServiceImpl implements AuthService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
         verifyOtp(request.getMail(), request.getOtp(), OtpPurpose.FORGOT_PASSWORD);
-        user.updatePassword(passwordEncoder.encode(request.getNewPassword()));
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
 
         // Revoke all existing refresh tokens after password reset
         refreshTokenRepository.revokeAllByUserId(user.getId());
+    }
+
+    @Override
+    @Transactional
+    public SetupPasswordResponse setupPassword(User currentUser, SetupPasswordRequest request) {
+        if (currentUser.getPassword() != null) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Password already set. Use 'Change Password' instead.");
+        }
+
+        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Passwords do not match.");
+        }
+
+        currentUser.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(currentUser);
+        log.info("User id={} set up a local password successfully.", currentUser.getId());
+
+        return SetupPasswordResponse.builder()
+                .hasPassword(true)
+                .message("Password set successfully. You can now log in with email and password.")
+                .build();
     }
 
     private void verifyOtp(String mail, String otpCode, OtpPurpose purpose) {

@@ -206,14 +206,14 @@ public class PostAiEnrichmentService {
 
         int idx = 0;
         for (OllamaQuestionsResponse.OllamaQuestion q : sorted) {
-            Verification v = new Verification(
-                post,
-                q.question(),
-                normalizeType(q.type()),
-                idx++,
-                serializeOptions(q.options()),
-                q.importantPoint()
-            );
+            Verification v = Verification.builder()
+                .post(post)
+                .question(q.question())
+                .questionType(normalizeType(q.type()))
+                .questionIndex(idx++)
+                .options(serializeOptions(q.options()))
+                .importantPoint(q.importantPoint())
+                .build();
             verificationRepository.save(v);
             verificationRepository.flush();
 
@@ -225,7 +225,10 @@ public class PostAiEnrichmentService {
                     q.question(), postId);
                 continue;
             }
-            CorrectAnswer correctAnswer = new CorrectAnswer(v, aiAnswer.trim());
+            CorrectAnswer correctAnswer = CorrectAnswer.builder()
+                .verification(v)
+                .answer(aiAnswer.trim())
+                .build();
             correctAnswerRepository.save(correctAnswer);
         }
         log.info("Saved {} verification questions (+ auto-correct answers) for post {}",
@@ -305,20 +308,23 @@ public class PostAiEnrichmentService {
 
                 int idx = 0;
                 for (OllamaQuestionsResponse.OllamaQuestion q : customQuestions) {
-                    Verification v = new Verification(
-                        post,
-                        q.question(),
-                        normalizeType(q.type()),
-                        idx++,
-                        serializeOptions(q.options()),
-                        q.importantPoint() == null ? 1 : q.importantPoint()
-                    );
+                    Verification v = Verification.builder()
+                        .post(post)
+                        .question(q.question())
+                        .questionType(normalizeType(q.type()))
+                        .questionIndex(idx++)
+                        .options(serializeOptions(q.options()))
+                        .importantPoint(q.importantPoint() == null ? 1 : q.importantPoint())
+                        .build();
                     verificationRepository.save(v);
                     verificationRepository.flush();
 
                     String answer = q.answer();
                     if (answer != null && !answer.isBlank()) {
-                        CorrectAnswer correctAnswer = new CorrectAnswer(v, answer.trim());
+                        CorrectAnswer correctAnswer = CorrectAnswer.builder()
+                            .verification(v)
+                            .answer(answer.trim())
+                            .build();
                         correctAnswerRepository.save(correctAnswer);
                     }
                 }

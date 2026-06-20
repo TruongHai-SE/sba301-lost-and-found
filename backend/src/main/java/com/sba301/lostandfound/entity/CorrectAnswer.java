@@ -9,9 +9,20 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
 @Table(name = "correct_answers")
+@Getter
+@Setter
+@Builder
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class CorrectAnswer {
 
     @Id
@@ -24,35 +35,4 @@ public class CorrectAnswer {
 
     @Column(nullable = false, columnDefinition = "text")
     private String answer;
-
-    protected CorrectAnswer() {
-    }
-
-    /**
-     * Constructor tiện dụng cho code.
-     */
-    public CorrectAnswer(Verification verification, String answer) {
-        this.verification = verification;
-        this.answer = answer;
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public Verification getVerification() {
-        return verification;
-    }
-
-    public String getAnswer() {
-        return answer;
-    }
-
-    public void setVerification(Verification verification) {
-        this.verification = verification;
-    }
-
-    public void setAnswer(String answer) {
-        this.answer = answer;
-    }
 }

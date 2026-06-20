@@ -64,14 +64,14 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<Void> logout(HttpServletRequest request) {
+    public ResponseEntity<ApiResponse<Void>> logout(HttpServletRequest request) {
         String refreshToken = CookieUtils.extractRefreshToken(request);
         authService.logout(refreshToken);
 
         ResponseCookie deleteCookie = CookieUtils.deleteRefreshTokenCookie(secureCookie);
-        return ResponseEntity.noContent()
+        return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, deleteCookie.toString())
-                .build();
+                .body(ApiResponse.success(null, "Logged out successfully"));
     }
 
     @PostMapping("/forgot-password")

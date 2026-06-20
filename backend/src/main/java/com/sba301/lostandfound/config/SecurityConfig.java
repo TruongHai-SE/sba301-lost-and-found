@@ -91,7 +91,7 @@ public class SecurityConfig {
                     "/index.html",
                     "/*.css",
                     "/*.js",
-                    "/favicon.ico"
+                    "/favicon.ico",
                     "/error"
                 ).permitAll()
                 .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")

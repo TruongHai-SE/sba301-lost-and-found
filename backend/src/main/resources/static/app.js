@@ -116,7 +116,8 @@ async function handleLogin(event) {
 
         const data = await response.json();
         saveAuthSession(data);
-        showToast(`Chào mừng quay trở lại, ${data.name}! 👋`, 'success');
+        const authData = data.data || data;
+        showToast(`Chào mừng quay trở lại, ${authData.name}! 👋`, 'success');
     } catch (error) {
         showToast(error.message, 'error');
     }
@@ -150,14 +151,15 @@ async function handleRegister(event) {
 }
 
 function saveAuthSession(data) {
-    state.token = data.accessToken;
-    state.userId = data.userId;
-    state.userName = data.name;
-    state.userRole = data.userType || 'USER';
+    const authData = data.data || data;
+    state.token = authData.accessToken;
+    state.userId = authData.userId;
+    state.userName = authData.name;
+    state.userRole = authData.userType || 'USER';
 
-    localStorage.setItem('token', data.accessToken);
-    localStorage.setItem('userId', data.userId);
-    localStorage.setItem('userName', data.name);
+    localStorage.setItem('token', authData.accessToken);
+    localStorage.setItem('userId', authData.userId);
+    localStorage.setItem('userName', authData.name);
     localStorage.setItem('userRole', state.userRole);
 
     showDashboard();
@@ -363,10 +365,11 @@ async function handleCreatePost(event) {
         const matchesSection = document.getElementById('match-results-on-create');
         
         matchesContainer.innerHTML = '';
-        if (data.matches && data.matches.length > 0) {
+        const postData = data.data || data;
+        if (postData.matches && postData.matches.length > 0) {
             matchesSection.classList.remove('hidden');
-            renderMatches(data.matches, matchesContainer);
-            showToast(`Hệ thống CLIP đã đối sánh chéo phát hiện ${data.matches.length} tin khớp! Hãy cuộn xuống để xem.`, 'warning');
+            renderMatches(postData.matches, matchesContainer);
+            showToast(`Hệ thống CLIP đã đối sánh chéo phát hiện ${postData.matches.length} tin khớp! Hãy cuộn xuống để xem.`, 'warning');
         } else {
             matchesSection.classList.add('hidden');
         }
@@ -442,11 +445,12 @@ async function handleSearch(event) {
         }
 
         const data = await response.json();
-        titleEl.textContent = `Kết quả tìm thấy (${data.total || 0})`;
+        const searchData = data.data || data;
+        titleEl.textContent = `Kết quả tìm thấy (${searchData.total || 0})`;
         resultsSection.classList.remove('hidden');
 
-        if (data.results && data.results.length > 0) {
-            renderSearchResults(data.results, resultsContainer);
+        if (searchData.results && searchData.results.length > 0) {
+            renderSearchResults(searchData.results, resultsContainer);
         } else {
             resultsContainer.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 40px 0;">Không tìm thấy tin trùng khớp nào phù hợp với từ khóa/ảnh của bạn.</p>';
         }
@@ -554,8 +558,9 @@ async function openClaimModal(postId, blurredUrl) {
         }
 
         const data = await response.json();
+        const verificationData = data.data || data;
         
-        if (data.status === 'NOT_GENERATED' || !data.questions || data.questions.length === 0) {
+        if (verificationData.status === 'NOT_GENERATED' || !verificationData.questions || verificationData.questions.length === 0) {
             questionsContainer.innerHTML = `
                 <div style="text-align: center; padding: 20px; color: var(--warning);">
                     ⚠️ AI chưa kịp sinh câu hỏi xác minh cho bài này (hoặc bài đăng không có ảnh). <br>
@@ -566,7 +571,7 @@ async function openClaimModal(postId, blurredUrl) {
             return;
         }
 
-        renderQuestions(data.questions, questionsContainer);
+        renderQuestions(verificationData.questions, questionsContainer);
 
     } catch (error) {
         questionsContainer.innerHTML = `<p style="color: var(--danger); text-align: center;">Lỗi: ${error.message}</p>`;
@@ -675,43 +680,45 @@ async function submitClaim(event) {
         });
 
         const data = await response.json();
+        // Unwrap ApiResponse envelope (data.data) with fallback for legacy format
+        const claimData = data.data || data;
         
         resultBox.className = 'claim-result-box';
         resultBox.classList.remove('hidden');
 
-        if (response.ok && data.approved) {
+        if (response.ok && claimData.approved) {
             resultBox.classList.add('success');
             
-            const owner = data.details.owner || {};
-            const scorePercent = Math.round(data.score * 100);
+            const owner = claimData.details?.owner || {};
+            const scorePercent = Math.round(claimData.score * 100);
 
             resultBox.innerHTML = `
                 <div class="success-unlocked-card">
                     <h4>🎉 Xác Minh Thành Công! (${scorePercent}%)</h4>
                     <p style="font-size: 0.85rem; margin-top: 5px;">Hệ thống đã phê duyệt và mở khóa thông tin liên hệ của tin đăng này.</p>
                     
-                    ${data.details.image_url ? `<img src="${data.details.image_url}" alt="Unlocked Clear Image" style="width:100%;border-radius:8px;margin:10px 0;">` : ''}
+                    ${claimData.details?.image_url ? `<img src="${claimData.details.image_url}" alt="Unlocked Clear Image" style="width:100%;border-radius:8px;margin:10px 0;">` : ''}
                     
                     <div class="owner-info-box">
                         <h5>Thông Tin Liên Hệ Nhận Đồ</h5>
                         <div class="owner-info-item"><strong>Người nhặt:</strong> <span>${owner.full_name || 'N/A'}</span></div>
                         <div class="owner-info-item"><strong>Số điện thoại:</strong> <span>${owner.phone || 'N/A'}</span></div>
                         <div class="owner-info-item"><strong>Email:</strong> <span>${owner.email || 'N/A'}</span></div>
-                        <div class="owner-info-item"><strong>Tin đăng số:</strong> <span>#${data.details.post_id}</span></div>
+                        <div class="owner-info-item"><strong>Tin đăng số:</strong> <span>#${claimData.details?.post_id}</span></div>
                     </div>
                 </div>
             `;
             showToast('Xác minh thành công! Đã mở khóa thông tin đồ vật.', 'success');
         } else {
-            // Rejected
+            // Rejected (403) - claimData chứa ClaimResponse
             resultBox.classList.add('error');
-            const scorePercent = Math.round(data.score * 100);
+            const scorePercent = Math.round((claimData.score || 0) * 100);
             resultBox.innerHTML = `
                 <h4>❌ Xác Minh Thất Bại</h4>
-                <p style="font-size: 0.9rem; margin-top: 5px;">${data.message || 'Mức độ khớp câu trả lời chưa đạt yêu cầu.'}</p>
+                <p style="font-size: 0.9rem; margin-top: 5px;">${claimData.message || 'Mức độ khớp câu trả lời chưa đạt yêu cầu.'}</p>
                 <div style="margin-top: 10px; font-weight: 500;">
                     Điểm số của bạn: <span style="color: var(--danger); font-size: 1.1rem;">${scorePercent}%</span> 
-                    (Yêu cầu tối thiểu: ${Math.round(data.threshold * 100)}%)
+                    (Yêu cầu tối thiểu: ${Math.round((claimData.threshold || 0.6) * 100)}%)
                 </div>
             `;
             showToast('Xác minh thất bại. Điểm số chưa đạt 60%', 'error');

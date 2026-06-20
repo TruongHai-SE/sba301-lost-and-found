@@ -1,17 +1,18 @@
 package com.sba301.lostandfound.controller;
 
+import com.sba301.lostandfound.dto.ApiResponse;
 import com.sba301.lostandfound.dto.ClaimAnswerRequest;
 import com.sba301.lostandfound.dto.ClaimResponse;
 import com.sba301.lostandfound.dto.VerificationQuestionsResponse;
 import com.sba301.lostandfound.service.VerificationService;
 import jakarta.validation.Valid;
-import org.springframework.http.HttpStatus;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -28,21 +29,19 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/api/v1/posts/{postId}")
+@RequiredArgsConstructor
 public class VerificationController {
 
     private final VerificationService verificationService;
-
-    public VerificationController(VerificationService verificationService) {
-        this.verificationService = verificationService;
-    }
 
     /**
      * Lấy danh sách câu hỏi xác minh do AI sinh từ ảnh.
      * Nếu AI chưa kịp sinh → trả về status=NOT_GENERATED (FE sẽ retry sau vài giây).
      */
     @GetMapping("/verifications")
-    public VerificationQuestionsResponse getQuestions(@PathVariable Long postId) {
-        return verificationService.getQuestionsForPost(postId);
+    public ResponseEntity<ApiResponse<VerificationQuestionsResponse>> getQuestions(@PathVariable Long postId) {
+        VerificationQuestionsResponse result = verificationService.getQuestionsForPost(postId);
+        return ResponseEntity.ok(ApiResponse.success(result, "Verification questions retrieved successfully"));
     }
 
     /**
@@ -55,21 +54,20 @@ public class VerificationController {
      * </ul>
      */
     @PostMapping("/claim")
-    @ResponseStatus(HttpStatus.OK)
-    public ClaimResponse claim(
-        @PathVariable Long postId,
-        @Valid @RequestBody ClaimAnswerRequest request
+    public ResponseEntity<ApiResponse<ClaimResponse>> claim(
+            @PathVariable Long postId,
+            @Valid @RequestBody ClaimAnswerRequest request
     ) {
         ClaimResponse response = verificationService.claim(postId, request);
         if (!response.approved()) {
-            // Throw để GlobalExceptionHandler trả 403 với body là response
+            // Throw để GlobalExceptionHandler trả 403 với body là ApiResponse<ClaimResponse>
             throw new ClaimRejectedException(response);
         }
-        return response;
+        return ResponseEntity.ok(ApiResponse.success(response, "Claim approved successfully"));
     }
 
     /**
-     * Exception nội bộ: dùng để trigger HTTP 403 với body JSON là ClaimResponse.
+     * Exception nội bộ: dùng để trigger HTTP 403 với body JSON là ApiResponse<ClaimResponse>.
      * GlobalExceptionHandler sẽ bắt và convert.
      */
     public static class ClaimRejectedException extends RuntimeException {

@@ -43,12 +43,18 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Claim bị reject (score < threshold). Trả 403 với body là ClaimResponse đầy đủ
+     * Claim bị reject (score < threshold). Trả 403 với body ApiResponse<ClaimResponse>
      * để FE hiển thị lý do + cho phép retry.
      */
     @ExceptionHandler(ClaimRejectedException.class)
-    public ResponseEntity<ClaimResponse> handleClaimRejected(ClaimRejectedException ex) {
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ex.getResponse());
+    public ResponseEntity<ApiResponse<ClaimResponse>> handleClaimRejected(ClaimRejectedException ex) {
+        ApiResponse<ClaimResponse> body = ApiResponse.<ClaimResponse>builder()
+                .status(HttpStatus.FORBIDDEN.value())
+                .message("Claim rejected: score below threshold")
+                .data(ex.getResponse())
+                .timestamp(java.time.Instant.now())
+                .build();
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(body);
     }
 
     @ExceptionHandler(ResponseStatusException.class)

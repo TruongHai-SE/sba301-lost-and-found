@@ -9,9 +9,20 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
 @Table(name = "verification_responses")
+@Getter
+@Setter
+@Builder
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class VerificationResponse {
 
     @Id
@@ -28,27 +39,4 @@ public class VerificationResponse {
     private String answer;
 
     private Double score;
-
-    protected VerificationResponse() {
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public Long getClaimId() {
-        return claimId;
-    }
-
-    public Verification getVerification() {
-        return verification;
-    }
-
-    public String getAnswer() {
-        return answer;
-    }
-
-    public Double getScore() {
-        return score;
-    }
 }

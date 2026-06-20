@@ -20,11 +20,40 @@ async def lifespan(app: FastAPI):
         svc.store.close()
 
 
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+import logging
+
+logger = logging.getLogger("uvicorn.error")
+
 app = FastAPI(
     title="CLIP Service - Lost & Found",
     version="1.0.0",
     lifespan=lifespan,
 )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request, exc):
+    body = await request.body()
+    logger.error(f"Validation error: {exc.errors()}")
+    logger.error(f"Request body: {body.decode('utf-8', errors='ignore')}")
+    return JSONResponse(
+        status_code=422,
+        content={"detail": exc.errors(), "body": body.decode('utf-8', errors='ignore')},
+    )
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request, exc):
+    import traceback
+    logger.error(f"Global error: {str(exc)}")
+    logger.error(traceback.format_exc())
+    return JSONResponse(
+        status_code=500,
+        content={"detail": str(exc), "traceback": traceback.format_exc()},
+    )
+
 
 
 # Request / Response models
@@ -64,6 +93,7 @@ async def embed_image(req: EmbedImageRequest):
         result = svc.embed_and_index_image(req.post_id, req.image_url, req.post_type, req.image_id)
         return result
     except Exception as e:
+        logger.error(f"Error in embed_image: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -74,6 +104,7 @@ async def embed_text(req: EmbedTextRequest):
         result = svc.embed_and_index_text(req.post_id, req.text, req.post_type, req.translate)
         return result
     except Exception as e:
+        logger.error(f"Error in embed_text: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -90,7 +121,7 @@ async def search(req: SearchRequest):
             top_k=req.top_k,
             threshold=req.threshold,
         )
-        return {"results": results}
+        return {"results": results, "matches": results}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

@@ -6,24 +6,19 @@ import com.sba301.lostandfound.dto.ClipMatch;
 import com.sba301.lostandfound.dto.CreateFoundPostRequest;
 import com.sba301.lostandfound.dto.CreateLostPostRequest;
 import com.sba301.lostandfound.dto.CreatePostResponse;
-import com.sba301.lostandfound.dto.VerificationQuestionRequest;
-import com.sba301.lostandfound.entity.CorrectAnswer;
 import com.sba301.lostandfound.entity.Image;
 import com.sba301.lostandfound.entity.Location;
 import com.sba301.lostandfound.entity.Post;
 import com.sba301.lostandfound.entity.User;
-import com.sba301.lostandfound.entity.Verification;
 import com.sba301.lostandfound.entity.enums.HidePostType;
 import com.sba301.lostandfound.entity.enums.PostStatus;
 import com.sba301.lostandfound.entity.enums.PostType;
-import com.sba301.lostandfound.entity.enums.UserType;
-import com.sba301.lostandfound.repository.CorrectAnswerRepository;
 import com.sba301.lostandfound.repository.ImageRepository;
 import com.sba301.lostandfound.repository.LocationRepository;
 import com.sba301.lostandfound.repository.PostRepository;
 import com.sba301.lostandfound.repository.UserRepository;
-import com.sba301.lostandfound.repository.VerificationRepository;
 import com.sba301.lostandfound.service.ImageStorageService;
+import com.sba301.lostandfound.service.PostAiEnrichmentService;
 import com.sba301.lostandfound.service.PostService;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -31,15 +26,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class PostServiceImpl implements PostService {
 
     private static final Logger log = LoggerFactory.getLogger(PostServiceImpl.class);
-    private static final String LOST = PostType.LOST.name();
-    private static final String FOUND = PostType.FOUND.name();
 
     private final UserRepository userRepository;
     private final LocationRepository locationRepository;
@@ -47,8 +40,7 @@ public class PostServiceImpl implements PostService {
     private final PostRepository postRepository;
     private final ImageStorageService imageStorageService;
     private final ClipClient clipClient;
-    private final VerificationRepository verificationRepository;
-    private final CorrectAnswerRepository correctAnswerRepository;
+    private final PostAiEnrichmentService postAiEnrichmentService;
 
     public PostServiceImpl(
         UserRepository userRepository,
@@ -57,8 +49,7 @@ public class PostServiceImpl implements PostService {
         PostRepository postRepository,
         ImageStorageService imageStorageService,
         ClipClient clipClient,
-        VerificationRepository verificationRepository,
-        CorrectAnswerRepository correctAnswerRepository
+        PostAiEnrichmentService postAiEnrichmentService
     ) {
         this.userRepository = userRepository;
         this.locationRepository = locationRepository;
@@ -66,16 +57,17 @@ public class PostServiceImpl implements PostService {
         this.postRepository = postRepository;
         this.imageStorageService = imageStorageService;
         this.clipClient = clipClient;
-        this.verificationRepository = verificationRepository;
-        this.correctAnswerRepository = correctAnswerRepository;
+        this.postAiEnrichmentService = postAiEnrichmentService;
     }
 
     @Override
-    @Transactional
     public CreatePostResponse createLostPost(CreateLostPostRequest request) {
         User user = resolveUser(request.getUserId());
-        Location location = request.hasLocation() ? saveLocation(request) : null;
-        Image image = request.hasImage() ? uploadAndSaveImage(request) : null;
+        Location location = request.hasLocation() ? saveLocation(
+            request.getAddress(), request.getCity(), request.getDistrict(),
+            request.getLatitude(), request.getLongitude(), request.getLocationLevel()
+        ) : null;
+        Image image = request.hasImage() ? uploadAndSaveImage(request.getImage()) : null;
 
         HidePostType hidePostType =
             request.getHidePostType() == null ? HidePostType.PUBLIC : request.getHidePostType();
@@ -93,62 +85,53 @@ public class PostServiceImpl implements PostService {
             .hidePostType(hidePostType)
             .build());
 
+        triggerAiEnrichment(post, image, request.getDescription(), null);
+
         List<ClipMatch> matches = runClipMatching(post, image, request.getDescription());
 
         return CreatePostResponse.from(post, matches);
     }
 
     @Override
-    @Transactional
     public CreatePostResponse createFoundPost(CreateFoundPostRequest request) {
-        // 1. Giải quyết thông tin người dùng qua Số điện thoại (Bắt buộc)
-        User user = userRepository.findByPhone(request.getPhone())
-                .orElseGet(() -> userRepository.save(User.builder()
-                        .phone(request.getPhone())
-                        .name("Guest_" + request.getPhone())
-                        .type(UserType.USER)
-                        .createAt(java.time.LocalDate.now())
-                        .build()));
-
-        // 2. Lưu vị trí và hình ảnh lên Cloudinary
-        Location location = request.hasLocation() ? saveLocationForFound(request) : null;
-        Image image = request.hasImage() ? uploadAndSaveImageForFound(request) : null;
-
-        HidePostType hidePostType = request.getHidePostType() == null ? HidePostType.PUBLIC : request.getHidePostType();
-
-        // 3. Khởi tạo thực thể bài đăng loại FOUND
-        Post post = postRepository.save(Post.builder()
-                .user(user)
-                .location(location)
-                .image(image)
-                .title(request.getTitle())
-                .description(request.getDescription())
-                .type(PostType.FOUND) // Xác định loại bài đăng nhặt được đồ
-                .eventTime(request.getEventTime())
+        User user = resolveUser(request.getUserId());
+        Location location = request.hasLocation() ? saveLocation(
+            request.getAddress(), request.getCity(), request.getDistrict(),
+            request.getLatitude(), request.getLongitude(), request.getLocationLevel()
+        ) : null;
+        Image image = null;
+        if (request.getImage() != null && !request.getImage().isEmpty()) {
+            image = uploadAndSaveImage(request.getImage());
+        } else if (request.getImageUrl() != null && !request.getImageUrl().isBlank()) {
+            image = imageRepository.save(Image.builder()
+                .url(request.getImageUrl().trim())
                 .createAt(LocalDateTime.now())
-                .status(PostStatus.ACTIVE)
-                .hidePostType(hidePostType)
                 .build());
-
-        // 4. Lưu dữ liệu bộ câu hỏi bảo mật động và đáp án gốc
-        if (request.getVerifications() != null) {
-            for (VerificationQuestionRequest vReq : request.getVerifications()) {
-                Verification verification = verificationRepository.save(Verification.builder()
-                        .post(post)
-                        .title(vReq.getTitle())
-                        .importantPoint(vReq.getImportantPoint() == null ? 5 : vReq.getImportantPoint())
-                        .build());
-
-                correctAnswerRepository.save(CorrectAnswer.builder()
-                        .verification(verification)
-                        .answer(vReq.getCorrectAnswer())
-                        .build());
-            }
         }
 
-        // 5. Đồng bộ Vector hóa thông qua CLIP Service và tìm kiếm chéo các bài LOST
-        // tương đồng
-        List<ClipMatch> matches = runClipMatchingForFound(post, image, request.getDescription());
+        HidePostType hidePostType =
+            request.getHidePostType() == null ? HidePostType.PUBLIC : request.getHidePostType();
+
+        Post post = postRepository.save(Post.builder()
+            .user(user)
+            .location(location)
+            .image(image)
+            .title(request.getTitle())
+            .description(request.getDescription())
+            .type(PostType.FOUND)
+            .eventTime(request.getEventTime())
+            .createAt(LocalDateTime.now())
+            .status(PostStatus.ACTIVE)
+            .hidePostType(hidePostType)
+            .build());
+
+        if (request.getCustomQuestionsJson() != null && !request.getCustomQuestionsJson().isBlank()) {
+            postAiEnrichmentService.saveCustomQuestions(post.getId(), request.getCustomQuestionsJson());
+        }
+
+        triggerAiEnrichment(post, image, request.getDescription(), request.getCustomQuestionsJson());
+
+        List<ClipMatch> matches = runClipMatching(post, image, request.getDescription());
 
         return CreatePostResponse.from(post, matches);
     }
@@ -162,38 +145,22 @@ public class PostServiceImpl implements PostService {
                 HttpStatus.NOT_FOUND, "User not found: " + userId));
     }
 
-    private Location saveLocation(CreateLostPostRequest request) {
+    private Location saveLocation(
+        String address, String city, String district,
+        Double latitude, Double longitude, Integer locationLevel
+    ) {
         return locationRepository.save(Location.builder()
-            .address(request.getAddress())
-            .city(request.getCity())
-            .district(request.getDistrict())
-            .latitude(request.getLatitude())
-            .longitude(request.getLongitude())
-            .locationLevel(request.getLocationLevel())
+            .address(address)
+            .city(city)
+            .district(district)
+            .latitude(latitude)
+            .longitude(longitude)
+            .locationLevel(locationLevel)
             .build());
     }
 
-    private Image uploadAndSaveImage(CreateLostPostRequest request) {
-        String url = imageStorageService.upload(request.getImage());
-        return imageRepository.save(Image.builder()
-            .url(url)
-            .createAt(LocalDateTime.now())
-            .build());
-    }
-    
-    private Location saveLocationForFound(CreateFoundPostRequest request) {
-        return locationRepository.save(Location.builder()
-            .address(request.getAddress())
-            .city(request.getCity())
-            .district(request.getDistrict())
-            .latitude(request.getLatitude())
-            .longitude(request.getLongitude())
-            .locationLevel(request.getLocationLevel())
-            .build());
-    }
-
-    private Image uploadAndSaveImageForFound(CreateFoundPostRequest request) {
-        String url = imageStorageService.upload(request.getImage());
+    private Image uploadAndSaveImage(MultipartFile file) {
+        String url = imageStorageService.upload(file);
         return imageRepository.save(Image.builder()
             .url(url)
             .createAt(LocalDateTime.now())
@@ -201,17 +168,52 @@ public class PostServiceImpl implements PostService {
     }
 
     /**
-     * Gọi CLIP service để tạo embedding và tìm các tin FOUND có khả năng khớp.
+     * Kích hoạt các tác vụ AI phân tích ảnh chạy nền.
+     * 1. Sinh mô tả chi tiết & tags bằng AI (cho cả LOST và FOUND).
+     * 2. Sinh câu hỏi xác minh tự động (chỉ cho FOUND).
+     */
+    private void triggerAiEnrichment(Post post, Image image, String userDescription, String customQuestionsJson) {
+        if (image == null) {
+            return;
+        }
+
+        // Tác vụ 1: AI mô tả chi tiết hình ảnh & gán tags tìm kiếm
+        try {
+            postAiEnrichmentService.enrichDescriptionAsync(
+                post.getId(), image.getUrl(), userDescription
+            );
+        } catch (RuntimeException exception) {
+            log.warn("Failed to schedule AI description enrichment for post {}: {}",
+                post.getId(), exception.getMessage());
+        }
+
+        // Tác vụ 2: AI tự sinh câu hỏi + đáp án xác minh (chỉ áp dụng cho FOUND nếu không có custom questions)
+        if (post.getType() == PostType.FOUND && (customQuestionsJson == null || customQuestionsJson.isBlank())) {
+            try {
+                postAiEnrichmentService.generateVerificationQuestionsAsync(
+                    post.getId(), image.getUrl(), userDescription
+                );
+            } catch (RuntimeException exception) {
+                log.warn("Failed to schedule AI question generation for post {}: {}",
+                    post.getId(), exception.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Gọi CLIP service để tạo embedding và tìm các tin có khả năng khớp.
+     * Loại tin (LOST/FOUND) được truyền động để CLIP tìm kiếm chéo đúng chiều.
      * Nếu CLIP lỗi/không khả dụng thì vẫn giữ post đã lưu và trả về danh sách rỗng.
      */
     private List<ClipMatch> runClipMatching(Post post, Image image, String description) {
         try {
+            String postType = post.getType().name();
             ClipEmbedResponse response;
             if (image != null) {
-                response = clipClient.embedImage(post.getId(), image.getUrl(), image.getId(), LOST);
+                response = clipClient.embedImage(post.getId(), image.getUrl(), image.getId(), postType);
             } else {
                 String text = buildText(post.getTitle(), description);
-                response = clipClient.embedText(post.getId(), text, LOST);
+                response = clipClient.embedText(post.getId(), text, postType);
             }
             if (response == null || response.matches() == null) {
                 return List.of();
@@ -219,25 +221,6 @@ public class PostServiceImpl implements PostService {
             return response.matches();
         } catch (RuntimeException exception) {
             log.warn("CLIP matching failed for post {}: {}", post.getId(), exception.getMessage());
-            return List.of();
-        }
-    }
-    
-    private List<ClipMatch> runClipMatchingForFound(Post post, Image image, String description) {
-        try {
-            ClipEmbedResponse response;
-            if (image != null) {
-                response = clipClient.embedImage(post.getId(), image.getUrl(), image.getId(), FOUND);
-            } else {
-                String text = buildText(post.getTitle(), description);
-                response = clipClient.embedText(post.getId(), text, FOUND);
-            }
-            if (response == null || response.matches() == null) {
-                return List.of();
-            }
-            return response.matches();
-        } catch (RuntimeException exception) {
-            log.warn("CLIP matching failed for found post {}: {}", post.getId(), exception.getMessage());
             return List.of();
         }
     }

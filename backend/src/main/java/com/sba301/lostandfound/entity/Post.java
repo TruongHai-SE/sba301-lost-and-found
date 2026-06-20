@@ -20,10 +20,12 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
 @Table(name = "posts")
 @Getter
+@Setter
 @Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
@@ -71,4 +73,14 @@ public class Post {
 
     @Column(name = "delete_at")
     private LocalDateTime deleteAt;
+
+    // === AI enrichment (Ollama + Qwen-VL) ===
+    @Column(name = "ai_description", columnDefinition = "text")
+    private String aiDescription;
+
+    @Column(name = "ai_tags", columnDefinition = "text")
+    private String aiTags;
+
+    @Column(name = "ai_enriched_at")
+    private LocalDateTime aiEnrichedAt;
 }

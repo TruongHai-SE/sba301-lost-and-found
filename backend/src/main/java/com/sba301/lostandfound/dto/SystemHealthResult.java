@@ -6,6 +6,7 @@ public record SystemHealthResult(
     String backend,
     String database,
     String clip,
+    String ollama,
     Instant checkedAt
 ) {
 }

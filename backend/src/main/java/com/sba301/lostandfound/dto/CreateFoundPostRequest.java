@@ -3,15 +3,20 @@ package com.sba301.lostandfound.dto;
 import com.sba301.lostandfound.entity.enums.HidePostType;
 import jakarta.validation.constraints.NotBlank;
 import java.time.LocalDateTime;
-import java.util.List;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.multipart.MultipartFile;
 
+/**
+ * Body của API tạo tin nhặt được đồ. Gửi dưới dạng multipart/form-data nên dùng class
+ * có getter/setter để Spring bind qua @ModelAttribute. Các field location và image
+ * đều tùy chọn.
+ */
 @Getter
 @Setter
 public class CreateFoundPostRequest {
+
     @NotBlank
     private String title;
 
@@ -20,22 +25,27 @@ public class CreateFoundPostRequest {
     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
     private LocalDateTime eventTime;
 
-    @NotBlank
-    private String phone; // Bắt buộc đối với người nhặt được đồ
+    private Long userId;
 
-    private HidePostType hidePostType; // PUBLIC hoặc WHEN_MATCH
+    private HidePostType hidePostType;
 
     private String address;
+
     private String city;
+
     private String district;
+
     private Double latitude;
+
     private Double longitude;
+
     private Integer locationLevel;
 
     private MultipartFile image;
 
-    // Danh sách câu hỏi xác minh và đáp án tương ứng
-    private List<VerificationQuestionRequest> verifications;
+    private String customQuestionsJson;
+
+    private String imageUrl;
 
     public boolean hasLocation() {
         return address != null || city != null || district != null
@@ -43,6 +53,6 @@ public class CreateFoundPostRequest {
     }
 
     public boolean hasImage() {
-        return image != null && !image.isEmpty();
+        return (image != null && !image.isEmpty()) || (imageUrl != null && !imageUrl.isBlank());
     }
 }

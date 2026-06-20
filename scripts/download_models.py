@@ -27,22 +27,47 @@ CLIP_FILES = [
 
 
 def download_clip() -> None:
-    target_files = [CLIP_DIR / Path(relative_path).name for relative_path in CLIP_FILES]
-    if all(target.exists() for target in target_files):
+    target_onnx = CLIP_DIR / "model.onnx"
+    if target_onnx.exists():
         print("[1/2] CLIP ONNX model already exists; skipping.")
         return
 
-    print("[1/2] Downloading CLIP ONNX model from Hugging Face...")
-    snapshot_dir = Path(
-        snapshot_download(repo_id=CLIP_REPO, allow_patterns=CLIP_FILES)
-    )
+    print("[1/2] Exporting CLIP model to ONNX using Optimum...")
     CLIP_DIR.mkdir(parents=True, exist_ok=True)
 
-    for relative_path in CLIP_FILES:
-        source = snapshot_dir / relative_path
-        target = CLIP_DIR / Path(relative_path).name
-        if not target.exists():
-            shutil.copy2(source, target)
+    import subprocess
+    import sys
+
+    python_exe = sys.executable
+    optimum_cli_script = Path(python_exe).parent / "optimum-cli.exe"
+
+    if optimum_cli_script.exists():
+        cmd = [
+            str(optimum_cli_script),
+            "export",
+            "onnx",
+            "--model",
+            CLIP_REPO,
+            "--task",
+            "zero-shot-image-classification",
+            str(CLIP_DIR)
+        ]
+    else:
+        cmd = [
+            python_exe,
+            "-m",
+            "optimum.exporters.onnx",
+            "--model",
+            CLIP_REPO,
+            "--task",
+            "zero-shot-image-classification",
+            str(CLIP_DIR)
+        ]
+
+    print(f"Running command: {' '.join(cmd)}")
+    result = subprocess.run(cmd)
+    if result.returncode != 0:
+        raise RuntimeError("Optimum export failed!")
 
 
 def download_yolo() -> None:

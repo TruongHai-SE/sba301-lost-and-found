@@ -174,8 +174,24 @@
                                     <img id="post-img-preview" class="img-preview hidden" src="" alt="Preview">
                                 </div>
 
-                                <div id="post-type-warning" class="info-alert">
-                                    💡 <strong>Lưu ý:</strong> Vì đây là tin đăng <strong>Nhặt được đồ (FOUND)</strong>, hệ thống AI sẽ tự động quét bức ảnh bạn gửi lên để sinh bộ câu hỏi và đáp án bảo mật chạy nền.
+                                <!-- SECTION: VERIFICATION QUESTIONS (ONLY FOR FOUND POST TYPE) -->
+                                <div id="verification-questions-section" class="verification-questions-section">
+                                    <div class="questions-header-row">
+                                        <h3>🛡️ Câu hỏi xác minh bảo mật</h3>
+                                        <button type="button" class="btn-secondary" style="padding: 6px 12px; font-size: 0.85rem;" onclick="addCustomQuestionField()">Thêm câu hỏi ➕</button>
+                                    </div>
+                                    <p class="desc" style="margin-bottom: 15px; font-size: 0.85rem;">
+                                        Khi bạn tải ảnh lên, AI sẽ tự động phân tích và sinh bộ câu hỏi bảo mật dưới đây. Bạn có thể tự do chỉnh sửa, thêm bớt hoặc thay đổi đáp án đúng để kiểm soát chính xác ai được nhận lại đồ.
+                                    </p>
+                                    
+                                    <!-- Loader while AI is generating questions -->
+                                    <div id="questions-loader" class="questions-loader hidden">
+                                        <div class="spinner"></div>
+                                        <span>AI đang phân tích ảnh và sinh gợi ý câu hỏi xác minh... 🤖</span>
+                                    </div>
+
+                                    <!-- List of question cards -->
+                                    <div id="verification-questions-list"></div>
                                 </div>
 
                                 <button type="submit" id="submit-post-btn" class="btn-primary ripple-btn">Đăng bài ngay 🚀</button>

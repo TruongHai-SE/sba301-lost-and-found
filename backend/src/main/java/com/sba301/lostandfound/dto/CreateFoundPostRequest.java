@@ -43,12 +43,16 @@ public class CreateFoundPostRequest {
 
     private MultipartFile image;
 
+    private String customQuestionsJson;
+
+    private String imageUrl;
+
     public boolean hasLocation() {
         return address != null || city != null || district != null
             || latitude != null || longitude != null || locationLevel != null;
     }
 
     public boolean hasImage() {
-        return image != null && !image.isEmpty();
+        return (image != null && !image.isEmpty()) || (imageUrl != null && !imageUrl.isBlank());
     }
 }

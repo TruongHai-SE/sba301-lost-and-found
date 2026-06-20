@@ -271,4 +271,62 @@ public class PostAiEnrichmentService {
             return List.of();
         }
     }
+
+    /**
+     * Lưu câu hỏi xác minh tự tạo hoặc chỉnh sửa từ frontend.
+     */
+    public void saveCustomQuestions(Long postId, String customQuestionsJson) {
+        if (customQuestionsJson == null || customQuestionsJson.isBlank()) {
+            return;
+        }
+        transactionTemplate.executeWithoutResult(status -> {
+            try {
+                Optional<Post> postOpt = postRepository.findById(postId);
+                if (postOpt.isEmpty()) {
+                    log.warn("Post {} vanished before custom questions could save", postId);
+                    return;
+                }
+                Post post = postOpt.get();
+
+                List<OllamaQuestionsResponse.OllamaQuestion> customQuestions = objectMapper.readValue(
+                    customQuestionsJson, new TypeReference<List<OllamaQuestionsResponse.OllamaQuestion>>() {}
+                );
+
+                if (customQuestions == null || customQuestions.isEmpty()) {
+                    return;
+                }
+
+                // Xóa câu hỏi cũ
+                List<Verification> existing = verificationRepository.findByPostIdOrderByQuestionIndexAsc(postId);
+                if (!existing.isEmpty()) {
+                    verificationRepository.deleteAll(existing);
+                    verificationRepository.flush();
+                }
+
+                int idx = 0;
+                for (OllamaQuestionsResponse.OllamaQuestion q : customQuestions) {
+                    Verification v = new Verification(
+                        post,
+                        q.question(),
+                        normalizeType(q.type()),
+                        idx++,
+                        serializeOptions(q.options()),
+                        q.importantPoint() == null ? 1 : q.importantPoint()
+                    );
+                    verificationRepository.save(v);
+                    verificationRepository.flush();
+
+                    String answer = q.answer();
+                    if (answer != null && !answer.isBlank()) {
+                        CorrectAnswer correctAnswer = new CorrectAnswer(v, answer.trim());
+                        correctAnswerRepository.save(correctAnswer);
+                    }
+                }
+                log.info("Saved {} custom verification questions for post {}", customQuestions.size(), postId);
+            } catch (Exception e) {
+                log.error("Failed to save custom questions for post {}: {}", postId, e.getMessage(), e);
+                throw new RuntimeException("Failed to save custom questions", e);
+            }
+        });
+    }
 }

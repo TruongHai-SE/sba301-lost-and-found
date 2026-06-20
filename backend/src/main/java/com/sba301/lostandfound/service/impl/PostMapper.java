@@ -57,10 +57,24 @@ public class PostMapper {
     }
 
     /**
-     * Map Post → BlurredPostSummary từ ClipMatch (lấy score từ match).
+     * Map Post -> BlurredPostSummary from ClipMatch (scaled human score).
      */
     public BlurredPostSummary toBlurredSummary(Post post, ClipMatch match) {
-        return toBlurredSummary(post, match == null ? null : match.score());
+        if (match == null) {
+            return toBlurredSummary(post, (Double) null);
+        }
+        Double parsedScore = null;
+        if (match.humanScore() != null) {
+            try {
+                String clean = match.humanScore().replace("%", "").trim();
+                parsedScore = Double.parseDouble(clean) / 100.0;
+            } catch (Exception e) {
+                parsedScore = match.score();
+            }
+        } else {
+            parsedScore = match.score();
+        }
+        return toBlurredSummary(post, parsedScore);
     }
 
     /**

@@ -36,6 +36,59 @@ const claimModal = document.getElementById('claim-modal');
 // API Base Path (Serving from same host)
 const API_BASE = '/api/v1';
 
+// Authenticated fetch wrapper that handles silent token refresh
+async function authenticatedFetch(url, options = {}) {
+    options.headers = options.headers || {};
+    if (state.token) {
+        options.headers['Authorization'] = `Bearer ${state.token}`;
+    }
+    
+    let response = await fetch(url, options);
+    
+    if (response.status === 401 && !options._isRetry) {
+        options._isRetry = true;
+        console.log('Access token expired. Attempting automatic refresh...');
+        try {
+            const refreshResponse = await fetch(`${API_BASE}/auth/refresh`, {
+                method: 'POST'
+            });
+            
+            if (refreshResponse.ok) {
+                const refreshData = await refreshResponse.json();
+                const dataObj = refreshData.data || refreshData;
+                
+                if (dataObj && dataObj.accessToken) {
+                    state.token = dataObj.accessToken;
+                    localStorage.setItem('token', dataObj.accessToken);
+                    options.headers['Authorization'] = `Bearer ${state.token}`;
+                    console.log('Token refreshed successfully. Retrying original request.');
+                    return await fetch(url, options);
+                }
+            }
+        } catch (refreshErr) {
+            console.error('Failed to automatically refresh token:', refreshErr);
+        }
+        
+        // If refresh fails or returns error, log out
+        console.warn('Session expired. Logging out.');
+        handleLogoutDirect();
+    }
+    return response;
+}
+
+function handleLogoutDirect() {
+    state.token = '';
+    state.userId = '';
+    state.userName = '';
+    state.userRole = 'USER';
+    localStorage.removeItem('token');
+    localStorage.removeItem('userId');
+    localStorage.removeItem('userName');
+    localStorage.removeItem('userRole');
+    showToast('Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại.', 'warning');
+    showAuth();
+}
+
 // Initial Load Setup
 window.addEventListener('DOMContentLoaded', () => {
     initApp();
@@ -194,10 +247,9 @@ function handleLogout() {
 async function checkSystemHealth() {
     try {
         const response = await fetch(`${API_BASE}/system/health`);
-        const data = await response.json();
-        // Unwrap ApiResponse envelope: { status, message, data: {...} }
-        const healthData = data.data || data;
-
+        const json = await response.json();
+        const data = json.data || json;
+        
         const clipInd = document.getElementById('status-clip');
         const ollamaInd = document.getElementById('status-ollama');
 
@@ -508,9 +560,8 @@ async function handleCreatePost(event) {
     const endpoint = postType === 'FOUND' ? `${API_BASE}/posts/found` : `${API_BASE}/posts`;
 
     try {
-        const response = await fetch(endpoint, {
+        const response = await authenticatedFetch(endpoint, {
             method: 'POST',
-            headers: { 'Authorization': `Bearer ${state.token}` },
             body: formData
         });
 
@@ -584,11 +635,10 @@ async function handleSearch(event) {
             const textQuery = document.getElementById('search-text-input').value;
             if (!textQuery) throw new Error('Vui lòng nhập từ khóa tìm kiếm');
             
-            response = await fetch(`${API_BASE}/search/text`, {
+            response = await authenticatedFetch(`${API_BASE}/search/text`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${state.token}`
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
                     text: textQuery,
@@ -615,9 +665,8 @@ async function handleSearch(event) {
             url.searchParams.append('top_k', topK);
             url.searchParams.append('target_type', targetType);
 
-            response = await fetch(url.toString(), {
+            response = await authenticatedFetch(url.toString(), {
                 method: 'POST',
-                headers: { 'Authorization': `Bearer ${state.token}` },
                 body: formData
             });
         }
@@ -731,9 +780,7 @@ async function openClaimModal(postId, blurredUrl) {
     claimModal.classList.remove('hidden');
 
     try {
-        const response = await fetch(`${API_BASE}/posts/${postId}/verifications`, {
-            headers: { 'Authorization': `Bearer ${state.token}` }
-        });
+        const response = await authenticatedFetch(`${API_BASE}/posts/${postId}/verifications`);
 
         if (!response.ok) {
             throw new Error('Lỗi lấy câu hỏi xác minh');
@@ -852,11 +899,10 @@ async function submitClaim(event) {
     });
 
     try {
-        const response = await fetch(`${API_BASE}/posts/${state.currentClaimPostId}/claim`, {
+        const response = await authenticatedFetch(`${API_BASE}/posts/${state.currentClaimPostId}/claim`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${state.token}`
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify({ answers })
         });

@@ -874,3 +874,81 @@ h1, h2, h3, h4 {
 .toast-close:hover {
     color: var(--text-main);
 }
+
+/* Question Creator Styles */
+.verification-questions-section {
+    margin-top: 20px;
+    border-radius: 12px;
+    border: 1px dashed var(--border-glass);
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.01);
+}
+
+.questions-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.questions-header-row h3 {
+    font-size: 1.1rem;
+    color: var(--secondary);
+}
+
+.questions-loader {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 25px;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    border: 1px dashed var(--border-glass);
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.1);
+}
+
+.spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    border-top: 2px solid var(--secondary);
+    border-radius: 50%;
+    animation: spin-anim 1s linear infinite;
+}
+
+@keyframes spin-anim {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.question-item-card {
+    background: rgba(15, 23, 42, 0.4);
+    border: 1px solid var(--border-glass);
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 15px;
+    position: relative;
+}
+
+.question-item-card .btn-delete-q {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    color: #fca5a5;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-family: var(--font-outfit);
+    transition: all 0.2s ease;
+}
+
+.question-item-card .btn-delete-q:hover {
+    background: var(--danger);
+    color: var(--text-main);
+}
+

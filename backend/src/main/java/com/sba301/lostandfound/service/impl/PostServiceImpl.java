@@ -85,7 +85,7 @@ public class PostServiceImpl implements PostService {
             .hidePostType(hidePostType)
             .build());
 
-        triggerAiEnrichment(post, image, request.getDescription());
+        triggerAiEnrichment(post, image, request.getDescription(), null);
 
         List<ClipMatch> matches = runClipMatching(post, image, request.getDescription());
 
@@ -99,7 +99,15 @@ public class PostServiceImpl implements PostService {
             request.getAddress(), request.getCity(), request.getDistrict(),
             request.getLatitude(), request.getLongitude(), request.getLocationLevel()
         ) : null;
-        Image image = request.hasImage() ? uploadAndSaveImage(request.getImage()) : null;
+        Image image = null;
+        if (request.getImage() != null && !request.getImage().isEmpty()) {
+            image = uploadAndSaveImage(request.getImage());
+        } else if (request.getImageUrl() != null && !request.getImageUrl().isBlank()) {
+            image = imageRepository.save(Image.builder()
+                .url(request.getImageUrl().trim())
+                .createAt(LocalDateTime.now())
+                .build());
+        }
 
         HidePostType hidePostType =
             request.getHidePostType() == null ? HidePostType.PUBLIC : request.getHidePostType();
@@ -117,7 +125,11 @@ public class PostServiceImpl implements PostService {
             .hidePostType(hidePostType)
             .build());
 
-        triggerAiEnrichment(post, image, request.getDescription());
+        if (request.getCustomQuestionsJson() != null && !request.getCustomQuestionsJson().isBlank()) {
+            postAiEnrichmentService.saveCustomQuestions(post.getId(), request.getCustomQuestionsJson());
+        }
+
+        triggerAiEnrichment(post, image, request.getDescription(), request.getCustomQuestionsJson());
 
         List<ClipMatch> matches = runClipMatching(post, image, request.getDescription());
 
@@ -160,7 +172,7 @@ public class PostServiceImpl implements PostService {
      * 1. Sinh mô tả chi tiết & tags bằng AI (cho cả LOST và FOUND).
      * 2. Sinh câu hỏi xác minh tự động (chỉ cho FOUND).
      */
-    private void triggerAiEnrichment(Post post, Image image, String userDescription) {
+    private void triggerAiEnrichment(Post post, Image image, String userDescription, String customQuestionsJson) {
         if (image == null) {
             return;
         }
@@ -175,8 +187,8 @@ public class PostServiceImpl implements PostService {
                 post.getId(), exception.getMessage());
         }
 
-        // Tác vụ 2: AI tự sinh câu hỏi + đáp án xác minh (chỉ áp dụng cho FOUND)
-        if (post.getType() == PostType.FOUND) {
+        // Tác vụ 2: AI tự sinh câu hỏi + đáp án xác minh (chỉ áp dụng cho FOUND nếu không có custom questions)
+        if (post.getType() == PostType.FOUND && (customQuestionsJson == null || customQuestionsJson.isBlank())) {
             try {
                 postAiEnrichmentService.generateVerificationQuestionsAsync(
                     post.getId(), image.getUrl(), userDescription

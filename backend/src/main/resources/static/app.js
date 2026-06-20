@@ -7,7 +7,8 @@ const state = {
     activeMainTab: 'post',
     activeSearchMode: 'text',
     activeAuthTab: 'login',
-    currentClaimPostId: null
+    currentClaimPostId: null,
+    preUploadedImageUrl: ''
 };
 
 // Elements
@@ -68,6 +69,7 @@ function initApp() {
     } else {
         showAuth();
     }
+    togglePostTypeWarning();
 }
 
 function showAuth() {
@@ -193,11 +195,13 @@ async function checkSystemHealth() {
     try {
         const response = await fetch(`${API_BASE}/system/health`);
         const data = await response.json();
-        
+        // Unwrap ApiResponse envelope: { status, message, data: {...} }
+        const healthData = data.data || data;
+
         const clipInd = document.getElementById('status-clip');
         const ollamaInd = document.getElementById('status-ollama');
 
-        if (data.clip === 'available' || data.clip === 'ok') {
+        if (healthData.clip === 'available' || healthData.clip === 'ok') {
             clipInd.textContent = 'ONLINE ✔';
             clipInd.className = 'status-indicator ok';
         } else {
@@ -205,10 +209,10 @@ async function checkSystemHealth() {
             clipInd.className = 'status-indicator error';
         }
 
-        if (data.ollama === 'available' || data.ollama === 'ok') {
+        if (healthData.ollama === 'available' || healthData.ollama === 'ok') {
             ollamaInd.textContent = 'ONLINE ✔';
             ollamaInd.className = 'status-indicator ok';
-        } else if (data.ollama === 'disabled') {
+        } else if (healthData.ollama === 'disabled') {
             ollamaInd.textContent = 'TẮT ⚠️';
             ollamaInd.className = 'status-indicator warning';
         } else {
@@ -255,11 +259,13 @@ function switchSearchMode(mode) {
 
 function togglePostTypeWarning() {
     const postType = document.getElementById('post-type').value;
-    const warningEl = document.getElementById('post-type-warning');
+    const sectionEl = document.getElementById('verification-questions-section');
     if (postType === 'FOUND') {
-        warningEl.classList.remove('hidden');
+        sectionEl.classList.remove('hidden');
     } else {
-        warningEl.classList.add('hidden');
+        sectionEl.classList.add('hidden');
+        state.preUploadedImageUrl = '';
+        document.getElementById('verification-questions-list').innerHTML = '';
     }
 }
 
@@ -272,10 +278,148 @@ function previewImage(input, previewId) {
             preview.classList.remove('hidden');
         }
         reader.readAsDataURL(input.files[0]);
+
+        // Auto trigger question generation if postType is FOUND
+        const postType = document.getElementById('post-type').value;
+        if (postType === 'FOUND' && previewId === 'post-img-preview') {
+            autoGenerateQuestions(input.files[0]);
+        }
     } else {
         preview.src = '';
         preview.classList.add('hidden');
+        if (previewId === 'post-img-preview') {
+            state.preUploadedImageUrl = '';
+            document.getElementById('verification-questions-list').innerHTML = '';
+        }
     }
+}
+
+// ----------------------------------------------------
+// AUTO QUESTION GENERATION & CREATOR LOGIC
+// ----------------------------------------------------
+async function autoGenerateQuestions(file) {
+    const loader = document.getElementById('questions-loader');
+    const container = document.getElementById('verification-questions-list');
+    
+    loader.classList.remove('hidden');
+    container.innerHTML = '';
+    state.preUploadedImageUrl = '';
+    
+    const formData = new FormData();
+    formData.append('image', file);
+    const userDesc = document.getElementById('post-description').value;
+    if (userDesc) {
+        formData.append('description', userDesc);
+    }
+    
+    try {
+        const response = await fetch(`${API_BASE}/posts/suggest-questions`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${state.token}` },
+            body: formData
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error ${response.status}`);
+        }
+        
+        const resData = await response.json();
+        const data = resData.data || resData;
+        
+        state.preUploadedImageUrl = data.imageUrl;
+        
+        if (data.questions && data.questions.length > 0) {
+            data.questions.forEach((q, idx) => {
+                renderQuestionItem(q, idx);
+            });
+        } else {
+            showToast('Không thể tự động sinh câu hỏi từ hình ảnh này. Vui lòng tự thêm câu hỏi thủ công.', 'warning');
+        }
+    } catch (err) {
+        console.error('Auto generate questions failed:', err);
+        showToast('Sinh câu hỏi tự động thất bại. Hãy tự soạn câu hỏi thủ công.', 'error');
+    } finally {
+        loader.classList.add('hidden');
+    }
+}
+
+function renderQuestionItem(q = {}, idx = null) {
+    const container = document.getElementById('verification-questions-list');
+    const questionId = idx !== null ? idx : container.children.length;
+    
+    const card = document.createElement('div');
+    card.className = 'question-item-card';
+    card.id = `q-card-${questionId}`;
+    
+    const qText = q.question || '';
+    const qType = q.type || 'TEXT';
+    const qAnswer = q.answer || '';
+    const qImportant = q.importantPoint || 1;
+    const qOptions = q.options ? q.options.join(',') : '';
+    
+    card.innerHTML = `
+        <button type="button" class="btn-delete-q" onclick="removeQuestionField(${questionId})">Xóa 🗑️</button>
+        <div class="form-row">
+            <div class="input-group">
+                <label>Câu hỏi xác minh</label>
+                <input type="text" class="q-question-text" required value="${escapeHtml(qText)}" placeholder="Ví dụ: Đồ vật có màu gì?">
+            </div>
+            <div class="input-group" style="max-width: 200px;">
+                <label>Loại câu hỏi</label>
+                <select class="q-type" onchange="toggleOptionsField(${questionId})">
+                    <option value="TEXT" ${qType === 'TEXT' ? 'selected' : ''}>Nhập text tự do</option>
+                    <option value="BOOLEAN" ${qType === 'BOOLEAN' ? 'selected' : ''}>Có / Không (Boolean)</option>
+                    <option value="MULTIPLE_CHOICE" ${qType === 'MULTIPLE_CHOICE' ? 'selected' : ''}>Trắc nghiệm (MCQ)</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="form-row" style="margin-top: 10px;">
+            <div class="input-group q-options-group ${qType === 'MULTIPLE_CHOICE' ? '' : 'hidden'}" id="q-options-group-${questionId}">
+                <label>Lựa chọn (phân cách bằng dấu phẩy)</label>
+                <input type="text" class="q-options" value="${escapeHtml(qOptions)}" placeholder="Ví dụ: Đỏ, Xanh, Vàng">
+            </div>
+            <div class="input-group">
+                <label>Đáp án đúng</label>
+                <input type="text" class="q-answer" required value="${escapeHtml(qAnswer)}" placeholder="Ví dụ: Đỏ (hoặc có/không)">
+            </div>
+            <div class="input-group" style="max-width: 150px;">
+                <label>Độ quan trọng</label>
+                <select class="q-important">
+                    <option value="1" ${qImportant === 1 ? 'selected' : ''}>Thường (1)</option>
+                    <option value="2" ${qImportant === 2 ? 'selected' : ''}>Quan trọng (2)</option>
+                    <option value="3" ${qImportant === 3 ? 'selected' : ''}>Rất quan trọng (3)</option>
+                </select>
+            </div>
+        </div>
+    `;
+    container.appendChild(card);
+}
+
+function addCustomQuestionField() {
+    renderQuestionItem();
+}
+
+function removeQuestionField(id) {
+    const card = document.getElementById(`q-card-${id}`);
+    if (card) {
+        card.remove();
+    }
+}
+
+function toggleOptionsField(id) {
+    const select = document.querySelector(`#q-card-${id} .q-type`);
+    const optionsGroup = document.getElementById(`q-options-group-${id}`);
+    if (select.value === 'MULTIPLE_CHOICE') {
+        optionsGroup.classList.remove('hidden');
+    } else {
+        optionsGroup.classList.add('hidden');
+    }
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 }
 
 // Helper to format ISO datetime for Spring Boot
@@ -322,8 +466,43 @@ async function handleCreatePost(event) {
     if (long) formData.append('longitude', long);
     if (address || city || district || lat || long) formData.append('locationLevel', 1);
 
-    if (fileInput.files && fileInput.files[0]) {
+    if (fileInput.files && fileInput.files[0] && !state.preUploadedImageUrl) {
         formData.append('image', fileInput.files[0]);
+    }
+
+    if (postType === 'FOUND') {
+        const questionCards = document.querySelectorAll('#verification-questions-list .question-item-card');
+        const customQuestions = [];
+        questionCards.forEach(card => {
+            const questionVal = card.querySelector('.q-question-text').value.trim();
+            const typeVal = card.querySelector('.q-type').value;
+            const answerVal = card.querySelector('.q-answer').value.trim();
+            const importantVal = parseInt(card.querySelector('.q-important').value) || 1;
+            
+            let optionsVal = [];
+            if (typeVal === 'MULTIPLE_CHOICE') {
+                const optInput = card.querySelector('.q-options').value;
+                optionsVal = optInput.split(',').map(s => s.trim()).filter(s => s.length > 0);
+            }
+            
+            if (questionVal) {
+                customQuestions.push({
+                    question: questionVal,
+                    type: typeVal,
+                    options: optionsVal,
+                    answer: answerVal,
+                    important_point: importantVal
+                });
+            }
+        });
+        
+        if (customQuestions.length > 0) {
+            formData.append('customQuestionsJson', JSON.stringify(customQuestions));
+        }
+        
+        if (state.preUploadedImageUrl) {
+            formData.append('imageUrl', state.preUploadedImageUrl);
+        }
     }
 
     const endpoint = postType === 'FOUND' ? `${API_BASE}/posts/found` : `${API_BASE}/posts`;
@@ -359,6 +538,9 @@ async function handleCreatePost(event) {
         // Reset Form
         document.getElementById('create-post-form').reset();
         document.getElementById('post-img-preview').classList.add('hidden');
+        state.preUploadedImageUrl = '';
+        document.getElementById('verification-questions-list').innerHTML = '';
+        togglePostTypeWarning();
 
         // Show immediate suggestions if matches returned
         const matchesContainer = document.getElementById('create-matches-container');

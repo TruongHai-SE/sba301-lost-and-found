@@ -1,5 +1,8 @@
 package com.sba301.lostandfound.entity;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -12,6 +15,8 @@ import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "correct_answers")
+@Builder
+@AllArgsConstructor
 public class CorrectAnswer {
 
     @Id

@@ -4,8 +4,12 @@ import com.sba301.lostandfound.dto.ApiResponse;
 import com.sba301.lostandfound.dto.CreateFoundPostRequest;
 import com.sba301.lostandfound.dto.CreateLostPostRequest;
 import com.sba301.lostandfound.dto.CreatePostResponse;
+import com.sba301.lostandfound.dto.PageResponse;
+import com.sba301.lostandfound.dto.PostAdminDTO;
 import com.sba301.lostandfound.dto.QuestionSuggestionResponse;
 import com.sba301.lostandfound.dto.OllamaQuestionsResponse;
+import com.sba301.lostandfound.entity.enums.PostStatus;
+import com.sba301.lostandfound.entity.enums.PostType;
 import com.sba301.lostandfound.service.PostService;
 import com.sba301.lostandfound.service.ImageStorageService;
 import com.sba301.lostandfound.service.ImageAnalysisService;
@@ -16,6 +20,10 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -69,5 +77,31 @@ public class PostController {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(ApiResponse.success(HttpStatus.CREATED.value(), response, "Create found post successfully"));
+    }
+
+    @GetMapping("/all")
+    public ResponseEntity<ApiResponse<PageResponse<PostAdminDTO>>> getAllPosts(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "createAt") String sortBy,
+            @RequestParam(defaultValue = "DESC") String sortDir,
+            @RequestParam(required = false) PostType type,
+            @RequestParam(required = false) PostStatus status) {
+        PageResponse<PostAdminDTO> response = postService.getAllPosts(page, size, sortBy, sortDir, type, status);
+        return ResponseEntity.ok(ApiResponse.success(response, "Get all posts successfully"));
+    }
+
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<ApiResponse<Void>> updatePostStatus(
+            @PathVariable Long id,
+            @RequestParam PostStatus status) {
+        postService.updatePostStatus(id, status);
+        return ResponseEntity.ok(ApiResponse.success(null, "Update post status successfully"));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<ApiResponse<Void>> deletePost(@PathVariable Long id) {
+        postService.deletePost(id);
+        return ResponseEntity.ok(ApiResponse.success(null, "Delete post successfully"));
     }
 }

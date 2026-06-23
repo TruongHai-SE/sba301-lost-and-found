@@ -34,6 +34,7 @@ public class EmailServiceImpl implements EmailService {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
+            helper.setFrom(mailUsername, "Lost & Found");
             helper.setTo(toEmail);
             helper.setSubject("Lost & Found — Mã xác thực OTP");
 

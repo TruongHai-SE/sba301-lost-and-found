@@ -136,7 +136,7 @@ class AdminUserControllerTest {
     void listUsers_validAdminRequest_returns200() throws Exception {
         PageResponse<UserResponse> page = PageResponse.<UserResponse>builder()
                 .content(List.of(sampleUserResponse()))
-                .page(0).size(10).totalElements(1).totalPages(1).last(true)
+                .pageNumber(0).pageSize(10).totalElements(1).totalPages(1).isLast(true)
                 .build();
         when(userService.getUsers(anyInt(), anyInt(), any(), any(), anyString(), anyString()))
                 .thenReturn(page);

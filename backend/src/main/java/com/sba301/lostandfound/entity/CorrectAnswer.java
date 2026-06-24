@@ -1,8 +1,5 @@
 package com.sba301.lostandfound.entity;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -21,7 +18,10 @@ import lombok.Setter;
 
 @Entity
 @Table(name = "correct_answers")
+@Getter
+@Setter
 @Builder
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 public class CorrectAnswer {
 

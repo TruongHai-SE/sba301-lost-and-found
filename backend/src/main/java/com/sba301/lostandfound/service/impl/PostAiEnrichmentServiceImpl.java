@@ -4,10 +4,10 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sba301.lostandfound.dto.OllamaQuestionsResponse;
 import com.sba301.lostandfound.dto.OllamaTags;
-import com.sba301.lostandfound.entity.CorrectAnswer;
+import com.sba301.lostandfound.entity.VerificationAnswer;
 import com.sba301.lostandfound.entity.Post;
 import com.sba301.lostandfound.entity.Verification;
-import com.sba301.lostandfound.repository.CorrectAnswerRepository;
+import com.sba301.lostandfound.repository.VerificationAnswerRepository;
 import com.sba301.lostandfound.repository.PostRepository;
 import com.sba301.lostandfound.repository.VerificationRepository;
 import com.sba301.lostandfound.service.ImageAnalysisService;
@@ -42,7 +42,7 @@ public class PostAiEnrichmentServiceImpl implements PostAiEnrichmentService {
     private final ImageAnalysisService imageAnalysisService;
     private final PostRepository postRepository;
     private final VerificationRepository verificationRepository;
-    private final CorrectAnswerRepository correctAnswerRepository;
+    private final VerificationAnswerRepository verificationAnswerRepository;
     private final ObjectMapper objectMapper;
     private final TransactionTemplate transactionTemplate;
 
@@ -50,14 +50,14 @@ public class PostAiEnrichmentServiceImpl implements PostAiEnrichmentService {
         ImageAnalysisService imageAnalysisService,
         PostRepository postRepository,
         VerificationRepository verificationRepository,
-        CorrectAnswerRepository correctAnswerRepository,
+        VerificationAnswerRepository verificationAnswerRepository,
         ObjectMapper objectMapper,
         PlatformTransactionManager transactionManager
     ) {
         this.imageAnalysisService = imageAnalysisService;
         this.postRepository = postRepository;
         this.verificationRepository = verificationRepository;
-        this.correctAnswerRepository = correctAnswerRepository;
+        this.verificationAnswerRepository = verificationAnswerRepository;
         this.objectMapper = objectMapper;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
@@ -111,7 +111,7 @@ public class PostAiEnrichmentServiceImpl implements PostAiEnrichmentService {
 
     // ============================================================
     // Flow 2: Generate verification questions + auto correct answers
-    // AI tự sinh câu hỏi + đáp án đúng → lưu vào verifications + correct_answers.
+    // AI tự sinh câu hỏi + đáp án chuẩn → lưu vào verifications + verification_answers.
     // Dùng cho flow verify claim (người mất search → ảnh mờ → trả lời → ảnh rõ).
     // ============================================================
 
@@ -143,9 +143,9 @@ public class PostAiEnrichmentServiceImpl implements PostAiEnrichmentService {
 
     /**
      * Lưu câu hỏi + đáp án AI sinh vào DB.
-     * - Xoá câu hỏi cũ (cascade sẽ xoá luôn correct_answers nhờ FK).
+     * - Xoá câu hỏi cũ (cascade sẽ xoá luôn verification_answers nhờ FK).
      * - Sắp xếp theo important_point giảm dần, lấy tối đa MAX_QUESTIONS_PER_POST.
-     * - Mỗi câu: 1 Verification + 1 CorrectAnswer.
+     * - Mỗi câu: 1 Verification + 1 VerificationAnswer.
      */
     private int saveQuestionsAndAnswersToPost(Long postId, OllamaQuestionsResponse resp) {
         Optional<Post> postOpt = postRepository.findById(postId);
@@ -155,7 +155,7 @@ public class PostAiEnrichmentServiceImpl implements PostAiEnrichmentService {
         }
         Post post = postOpt.get();
 
-        // Xoá câu hỏi cũ (cascade sẽ xoá luôn correct_answers nhờ FK)
+        // Xoá câu hỏi cũ (cascade sẽ xoá luôn verification_answers nhờ FK)
         List<Verification> existing = verificationRepository.findByPostIdOrderByQuestionIndexAsc(postId);
         if (!existing.isEmpty()) {
             verificationRepository.deleteAll(existing);
@@ -183,7 +183,7 @@ public class PostAiEnrichmentServiceImpl implements PostAiEnrichmentService {
             verificationRepository.save(v);
             verificationRepository.flush();
 
-            // Tự sinh CorrectAnswer từ AI response - đây là "đáp án đúng"
+            // Tự sinh VerificationAnswer từ AI response - đây là "đáp án chuẩn"
             // mà người mất phải đoán trúng để xem được ảnh rõ + thông tin liên hệ.
             String aiAnswer = q.answer();
             if (aiAnswer == null || aiAnswer.isBlank()) {
@@ -191,11 +191,11 @@ public class PostAiEnrichmentServiceImpl implements PostAiEnrichmentService {
                     q.question(), postId);
                 continue;
             }
-            CorrectAnswer correctAnswer = CorrectAnswer.builder()
+            VerificationAnswer verificationAnswer = VerificationAnswer.builder()
                 .verification(v)
                 .answer(aiAnswer.trim())
                 .build();
-            correctAnswerRepository.save(correctAnswer);
+            verificationAnswerRepository.save(verificationAnswer);
         }
         log.info("Saved {} verification questions (+ auto-correct answers) for post {}",
             sorted.size(), postId);
@@ -272,11 +272,11 @@ public class PostAiEnrichmentServiceImpl implements PostAiEnrichmentService {
 
                     String answer = q.answer();
                     if (answer != null && !answer.isBlank()) {
-                        CorrectAnswer correctAnswer = CorrectAnswer.builder()
+                        VerificationAnswer verificationAnswer = VerificationAnswer.builder()
                             .verification(v)
                             .answer(answer.trim())
                             .build();
-                        correctAnswerRepository.save(correctAnswer);
+                        verificationAnswerRepository.save(verificationAnswer);
                     }
                 }
                 log.info("Saved {} custom verification questions for post {}", customQuestions.size(), postId);

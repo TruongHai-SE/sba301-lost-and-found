@@ -9,7 +9,7 @@ import com.sba301.lostandfound.dto.CreatePostResponse;
 import com.sba301.lostandfound.dto.PageResponse;
 import com.sba301.lostandfound.dto.PostAdminDTO;
 import com.sba301.lostandfound.dto.VerificationQuestionRequest;
-import com.sba301.lostandfound.entity.CorrectAnswer;
+import com.sba301.lostandfound.entity.VerificationAnswer;
 import com.sba301.lostandfound.entity.Image;
 import com.sba301.lostandfound.entity.Location;
 import com.sba301.lostandfound.entity.Post;
@@ -19,7 +19,7 @@ import com.sba301.lostandfound.entity.enums.HidePostType;
 import com.sba301.lostandfound.entity.enums.PostStatus;
 import com.sba301.lostandfound.entity.enums.PostType;
 import com.sba301.lostandfound.entity.enums.UserType;
-import com.sba301.lostandfound.repository.CorrectAnswerRepository;
+import com.sba301.lostandfound.repository.VerificationAnswerRepository;
 import com.sba301.lostandfound.repository.ImageRepository;
 import com.sba301.lostandfound.repository.LocationRepository;
 import com.sba301.lostandfound.repository.PostRepository;
@@ -27,6 +27,13 @@ import com.sba301.lostandfound.repository.UserRepository;
 import com.sba301.lostandfound.repository.VerificationRepository;
 import com.sba301.lostandfound.service.ImageStorageService;
 import com.sba301.lostandfound.service.PostService;
+import com.sba301.lostandfound.service.ImageAnalysisService;
+import com.sba301.lostandfound.dto.QuestionSuggestionResponse;
+import com.sba301.lostandfound.dto.GenerateDescriptionResponse;
+import com.sba301.lostandfound.dto.OllamaQuestionsResponse;
+import com.sba301.lostandfound.dto.OllamaTags;
+import org.springframework.web.multipart.MultipartFile;
+import java.util.Optional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -56,9 +63,10 @@ public class PostServiceImpl implements PostService {
     private final ImageRepository imageRepository;
     private final PostRepository postRepository;
     private final ImageStorageService imageStorageService;
+    private final ImageAnalysisService imageAnalysisService;
     private final ClipClient clipClient;
     private final VerificationRepository verificationRepository;
-    private final CorrectAnswerRepository correctAnswerRepository;
+    private final VerificationAnswerRepository verificationAnswerRepository;
 
     public PostServiceImpl(
             UserRepository userRepository,
@@ -66,17 +74,19 @@ public class PostServiceImpl implements PostService {
             ImageRepository imageRepository,
             PostRepository postRepository,
             ImageStorageService imageStorageService,
+            ImageAnalysisService imageAnalysisService,
             ClipClient clipClient,
             VerificationRepository verificationRepository,
-            CorrectAnswerRepository correctAnswerRepository) {
+            VerificationAnswerRepository verificationAnswerRepository) {
         this.userRepository = userRepository;
         this.locationRepository = locationRepository;
         this.imageRepository = imageRepository;
         this.postRepository = postRepository;
         this.imageStorageService = imageStorageService;
+        this.imageAnalysisService = imageAnalysisService;
         this.clipClient = clipClient;
         this.verificationRepository = verificationRepository;
-        this.correctAnswerRepository = correctAnswerRepository;
+        this.verificationAnswerRepository = verificationAnswerRepository;
     }
 
     @Override
@@ -95,7 +105,7 @@ public class PostServiceImpl implements PostService {
                 .description(request.getDescription())
                 .type(PostType.LOST)
                 .eventTime(request.getEventTime())
-                .createAt(LocalDateTime.now())
+                .createdAt(LocalDateTime.now())
                 .status(PostStatus.ACTIVE)
                 .hidePostType(hidePostType)
                 .build());
@@ -107,14 +117,22 @@ public class PostServiceImpl implements PostService {
 
     @Override
     public CreatePostResponse createFoundPost(CreateFoundPostRequest request) {
-        // 1. Giải quyết thông tin người dùng qua Số điện thoại (Bắt buộc)
-        User user = userRepository.findByPhone(request.getPhone())
-                .orElseGet(() -> userRepository.save(User.builder()
-                        .phone(request.getPhone())
-                        .name("Guest_" + request.getPhone())
-                        .type(UserType.USER)
-                        .createAt(LocalDate.now())
-                        .build()));
+        User user;
+        if (request.getUserId() != null) {
+            user = resolveUser(request.getUserId());
+        } else {
+            if (request.getPhone() == null || request.getPhone().isBlank()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "User ID or Phone number is required");
+            }
+            user = userRepository.findByPhone(request.getPhone())
+                    .orElseGet(() -> userRepository.save(User.builder()
+                            .phone(request.getPhone())
+                            .name("Guest_" + request.getPhone())
+                            .type(UserType.USER)
+                            .createdAt(LocalDate.now())
+                            .build()));
+        }
+
 
         // 2. Lưu vị trí và hình ảnh lên Cloudinary
         Location location = request.hasLocation() ? saveLocationForFound(request) : null;
@@ -131,7 +149,7 @@ public class PostServiceImpl implements PostService {
                 .description(request.getDescription())
                 .type(PostType.FOUND) // Xác định loại bài đăng nhặt được đồ
                 .eventTime(request.getEventTime())
-                .createAt(LocalDateTime.now())
+                .createdAt(LocalDateTime.now())
                 .status(PostStatus.ACTIVE)
                 .hidePostType(hidePostType)
                 .build());
@@ -145,7 +163,7 @@ public class PostServiceImpl implements PostService {
                         .importantPoint(vReq.getImportantPoint() == null ? 5 : vReq.getImportantPoint())
                         .build());
 
-                correctAnswerRepository.save(CorrectAnswer.builder()
+                verificationAnswerRepository.save(VerificationAnswer.builder()
                         .verification(verification)
                         .answer(vReq.getCorrectAnswer())
                         .build());
@@ -224,10 +242,12 @@ public class PostServiceImpl implements PostService {
     }
 
     private Image uploadAndSaveImage(CreateLostPostRequest request) {
-        String url = imageStorageService.upload(request.getImage());
+        String url = (request.getImage() != null && !request.getImage().isEmpty()) 
+                ? imageStorageService.upload(request.getImage()) 
+                : request.getImageUrl();
         return imageRepository.save(Image.builder()
                 .url(url)
-                .createAt(LocalDateTime.now())
+                .createdAt(LocalDateTime.now())
                 .build());
     }
 
@@ -293,11 +313,45 @@ public class PostServiceImpl implements PostService {
     }
 
     private Image uploadAndSaveImageForFound(CreateFoundPostRequest request) {
-        String url = imageStorageService.upload(request.getImage());
+        String url = (request.getImage() != null && !request.getImage().isEmpty()) 
+                ? imageStorageService.upload(request.getImage()) 
+                : request.getImageUrl();
         return imageRepository.save(Image.builder()
                 .url(url)
-                .createAt(LocalDateTime.now())
+                .createdAt(LocalDateTime.now())
                 .build());
     }
 
+    @Override
+    public QuestionSuggestionResponse suggestQuestions(MultipartFile image, String description) {
+        if (image == null || image.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Image is required to generate questions");
+        }
+        String imageUrl = imageStorageService.upload(image);
+        Optional<OllamaQuestionsResponse> suggestionsOpt = imageAnalysisService.generateQuestions(imageUrl, description);
+        
+        List<OllamaQuestionsResponse.OllamaQuestion> questions = suggestionsOpt
+                .map(OllamaQuestionsResponse::questions)
+                .orElse(List.of());
+        
+        return new QuestionSuggestionResponse(imageUrl, questions);
+    }
+
+    @Override
+    public GenerateDescriptionResponse generateDescription(MultipartFile image, String description) {
+        if (image == null || image.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Image is required to generate description");
+        }
+        String imageUrl = imageStorageService.upload(image);
+        Optional<OllamaTags> tagsOpt = imageAnalysisService.analyzeImage(imageUrl, description);
+        
+        if (tagsOpt.isEmpty()) {
+            throw new ResponseStatusException(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                "AI could not generate a description from the image. Please try again or write it manually.");
+        }
+        
+        OllamaTags tags = tagsOpt.get();
+        return new GenerateDescriptionResponse(imageUrl, tags.description(), tags.tags());
+    }
 }

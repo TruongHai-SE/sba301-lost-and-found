@@ -20,4 +20,10 @@ public interface PostService {
     void updatePostStatus(Long id, PostStatus status);
 
     void deletePost(Long id);
+
+    com.sba301.lostandfound.dto.QuestionSuggestionResponse suggestQuestions(
+        org.springframework.web.multipart.MultipartFile image, String description);
+
+    com.sba301.lostandfound.dto.GenerateDescriptionResponse generateDescription(
+        org.springframework.web.multipart.MultipartFile image, String description);
 }

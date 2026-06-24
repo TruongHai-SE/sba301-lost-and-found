@@ -32,7 +32,7 @@ public class UserServiceImpl implements UserService {
 
     /** Allowed sort fields — prevents arbitrary field injection into ORDER BY. */
     private static final Set<String> ALLOWED_SORT_FIELDS =
-            Set.of("id", "name", "mail", "createAt");
+            Set.of("id", "name", "mail", "createdAt");
 
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
@@ -215,7 +215,7 @@ public class UserServiceImpl implements UserService {
                 .phone(user.getPhone())
                 .socialLink(user.getSocialLink())
                 .type(user.getType())
-                .createAt(user.getCreateAt())
+                .createdAt(user.getCreatedAt())
                 .googleAccount(user.getPassword() == null)
                 .hasPassword(user.getPassword() != null)
                 .build();

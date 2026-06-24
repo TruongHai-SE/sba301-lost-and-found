@@ -7,10 +7,10 @@ import com.sba301.lostandfound.dto.FullPostDetails;
 import com.sba301.lostandfound.dto.LocationInfo;
 import com.sba301.lostandfound.dto.VerificationQuestion;
 import com.sba301.lostandfound.dto.VerificationQuestionsResponse;
-import com.sba301.lostandfound.entity.CorrectAnswer;
+import com.sba301.lostandfound.entity.VerificationAnswer;
 import com.sba301.lostandfound.entity.Post;
 import com.sba301.lostandfound.entity.Verification;
-import com.sba301.lostandfound.repository.CorrectAnswerRepository;
+import com.sba301.lostandfound.repository.VerificationAnswerRepository;
 import com.sba301.lostandfound.repository.PostRepository;
 import com.sba301.lostandfound.repository.VerificationRepository;
 import com.sba301.lostandfound.service.VerificationService;
@@ -30,7 +30,7 @@ import org.springframework.web.server.ResponseStatusException;
  * Implementation xử lý câu hỏi xác minh + claim flow.
  *
  * <p>Flow chính (Approach 2: AI hỏi - AI tự trả lời):
- *  1. AI sinh câu hỏi + đáp án đúng → lưu verifications + correct_answers (xem {@code PostAiEnrichmentService}).
+ *  1. AI sinh câu hỏi + đáp án chuẩn → lưu verifications + verification_answers (xem {@code PostAiEnrichmentService}).
  *  2. Người mất đồ gửi câu trả lời qua {@link #claim(Long, ClaimAnswerRequest)}.
  *  3. Server score từng câu, tính overall score. Nếu {@code overall >= THRESHOLD} → trả FullPostDetails.
  */
@@ -43,16 +43,16 @@ public class VerificationServiceImpl implements VerificationService {
     private static final double CLAIM_APPROVAL_THRESHOLD = 0.6;
 
     private final VerificationRepository verificationRepository;
-    private final CorrectAnswerRepository correctAnswerRepository;
+    private final VerificationAnswerRepository verificationAnswerRepository;
     private final PostRepository postRepository;
 
     public VerificationServiceImpl(
         VerificationRepository verificationRepository,
-        CorrectAnswerRepository correctAnswerRepository,
+        VerificationAnswerRepository verificationAnswerRepository,
         PostRepository postRepository
     ) {
         this.verificationRepository = verificationRepository;
-        this.correctAnswerRepository = correctAnswerRepository;
+        this.verificationAnswerRepository = verificationAnswerRepository;
         this.postRepository = postRepository;
     }
 
@@ -135,8 +135,8 @@ public class VerificationServiceImpl implements VerificationService {
         if (claimerAnswer == null || claimerAnswer.isBlank()) {
             return 0.0;
         }
-        Optional<CorrectAnswer> correctOpt =
-            correctAnswerRepository.findFirstByVerificationId(verificationId);
+        Optional<VerificationAnswer> correctOpt =
+            verificationAnswerRepository.findFirstByVerificationId(verificationId);
         if (correctOpt.isEmpty()) {
             return 0.0;
         }
@@ -227,7 +227,7 @@ public class VerificationServiceImpl implements VerificationService {
             post.getType() == null ? null : post.getType().name(),
             post.getEventTime(),
             post.getStatus() == null ? null : post.getStatus().name(),
-            post.getCreateAt(),
+            post.getCreatedAt(),
             LocationInfo.from(post.getLocation()),
             owner,
             verificationScore

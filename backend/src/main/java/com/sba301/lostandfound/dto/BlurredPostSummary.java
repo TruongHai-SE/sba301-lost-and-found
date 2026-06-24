@@ -18,7 +18,7 @@ public record BlurredPostSummary(
     @JsonProperty("original_image_url") String originalImageUrl,
     @JsonProperty("type") String type,
     @JsonProperty("event_time") LocalDateTime eventTime,
-    @JsonProperty("create_at") LocalDateTime createAt,
+    @JsonProperty("created_at") LocalDateTime createdAt,
     @JsonProperty("location") LocationInfo location,
     @JsonProperty("match_score") Double matchScore,
     @JsonProperty("verification_questions") List<VerificationQuestion> verificationQuestions,

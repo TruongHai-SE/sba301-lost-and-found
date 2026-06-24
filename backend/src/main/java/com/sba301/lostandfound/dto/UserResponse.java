@@ -30,7 +30,7 @@ public class UserResponse {
     private final UserType type;
 
     @Schema(description = "Account creation date", example = "2024-01-15")
-    private final LocalDate createAt;
+    private final LocalDate createdAt;
 
     @Schema(description = "Whether the user registered via Google (no password set)", example = "false")
     private final boolean googleAccount;

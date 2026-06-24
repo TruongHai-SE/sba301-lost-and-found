@@ -20,7 +20,7 @@ public record FullPostDetails(
     @JsonProperty("type") String type,
     @JsonProperty("event_time") LocalDateTime eventTime,
     @JsonProperty("status") String status,
-    @JsonProperty("create_at") LocalDateTime createAt,
+    @JsonProperty("created_at") LocalDateTime createdAt,
     @JsonProperty("location") LocationInfo location,
     @JsonProperty("owner") OwnerInfo owner,
     @JsonProperty("verification_score") Double verificationScore

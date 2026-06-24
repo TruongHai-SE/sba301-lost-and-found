@@ -29,7 +29,7 @@ public class CreatePostResponse {
     private final PostStatus status;
     private final HidePostType hidePostType;
     private final LocalDateTime eventTime;
-    private final LocalDateTime createAt;
+    private final LocalDateTime createdAt;
     private final String imageUrl;
     private final Long userId;
     private final LocationInfo location;
@@ -51,7 +51,7 @@ public class CreatePostResponse {
             .status(post.getStatus())
             .hidePostType(post.getHidePostType())
             .eventTime(post.getEventTime())
-            .createAt(post.getCreateAt())
+            .createdAt(post.getCreatedAt())
             .imageUrl(post.getImage() == null ? null : post.getImage().getUrl())
             .userId(post.getUser() == null ? null : post.getUser().getId())
             .location(LocationInfo.from(post.getLocation()))

@@ -31,6 +31,6 @@ public class Image {
     @Column(name = "private_url", columnDefinition = "text")
     private String privateUrl;
 
-    @Column(name = "create_at")
-    private LocalDateTime createAt;
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
 }

@@ -16,14 +16,19 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+/**
+ * Thực thể lưu trữ câu trả lời của người claim đồ (claim attempt answer).
+ *
+ * <p>Thay thế cho tên cũ {@code VerificationResponse} để tránh nhầm lẫn với các đối tượng DTO.
+ */
 @Entity
-@Table(name = "verification_responses")
+@Table(name = "claim_attempt_answers")
 @Getter
 @Setter
 @Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
-public class VerificationResponse {
+public class ClaimAttemptAnswer {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

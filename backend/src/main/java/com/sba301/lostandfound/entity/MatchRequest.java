@@ -42,8 +42,8 @@ public class MatchRequest {
     private MatchRequestStatus status;
 
     @Builder.Default
-    @Column(name = "create_at")
-    private LocalDateTime createAt = LocalDateTime.now();
+    @Column(name = "created_at")
+    private LocalDateTime createdAt = LocalDateTime.now();
 
     @Column(columnDefinition = "text")
     private String message;

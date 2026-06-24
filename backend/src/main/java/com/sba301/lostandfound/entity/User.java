@@ -49,6 +49,6 @@ public class User {
     private String socialLink;
 
     @Builder.Default
-    @Column(name = "create_at")
-    private LocalDate createAt = LocalDate.now();
+    @Column(name = "created_at")
+    private LocalDate createdAt = LocalDate.now();
 }

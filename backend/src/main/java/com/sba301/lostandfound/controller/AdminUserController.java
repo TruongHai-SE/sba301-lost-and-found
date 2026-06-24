@@ -37,7 +37,7 @@ public class AdminUserController {
     @Operation(
         summary = "List users",
         description = "Returns a paginated, searchable, filterable, and sortable list of all users. "
-                    + "Allowed sortBy values: id, name, mail, createAt. Max page size: 50."
+                    + "Allowed sortBy values: id, name, mail, createdAt. Max page size: 50."
     )
     public ResponseEntity<ApiResponse<PageResponse<UserResponse>>> getUsers(
             @Parameter(description = "0-based page index", example = "0")
@@ -48,7 +48,7 @@ public class AdminUserController {
             @RequestParam(required = false) String search,
             @Parameter(description = "Filter by role")
             @RequestParam(required = false) UserType role,
-            @Parameter(description = "Sort field: id | name | mail | createAt", example = "id")
+            @Parameter(description = "Sort field: id | name | mail | createdAt", example = "id")
             @RequestParam(defaultValue = "id") String sortBy,
             @Parameter(description = "Sort direction: asc | desc", example = "asc")
             @RequestParam(defaultValue = "asc") String sortDir

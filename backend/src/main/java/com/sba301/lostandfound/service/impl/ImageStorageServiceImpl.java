@@ -10,12 +10,19 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
+/**
+ * Implementation của {@link ImageStorageService} dùng Cloudinary làm cloud storage.
+ *
+ * <p>Nếu sau này đổi sang AWS S3 hoặc GCS, chỉ cần tạo implementation mới
+ * (S3ImageStorageService hoặc GcsImageStorageService) và swap bean qua config/profile,
+ * không cần sửa bất kỳ caller nào.
+ */
 @Service
-public class CloudinaryImageStorageService implements ImageStorageService {
+public class ImageStorageServiceImpl implements ImageStorageService {
 
     private final Cloudinary cloudinary;
 
-    public CloudinaryImageStorageService(Cloudinary cloudinary) {
+    public ImageStorageServiceImpl(Cloudinary cloudinary) {
         this.cloudinary = cloudinary;
     }
 
@@ -34,7 +41,7 @@ public class CloudinaryImageStorageService implements ImageStorageService {
             return secureUrl.toString();
         } catch (IOException exception) {
             throw new ResponseStatusException(
-                HttpStatus.BAD_GATEWAY, "Failed to upload image to Cloudinary", exception);
+                HttpStatus.BAD_GATEWAY, "Failed to upload image to storage", exception);
         }
     }
 }

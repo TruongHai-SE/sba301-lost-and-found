@@ -16,7 +16,7 @@ public interface UserService {
      * @param size    number of results per page (max 50)
      * @param search  optional substring to match against name or mail (case-insensitive)
      * @param role    optional filter by UserType
-     * @param sortBy  field to sort on — whitelisted: id, name, mail, createAt
+     * @param sortBy  field to sort on — whitelisted: id, name, mail, createdAt
      * @param sortDir "asc" or "desc"
      */
     PageResponse<UserResponse> getUsers(int page, int size, String search, UserType role,

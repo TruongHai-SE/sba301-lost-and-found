@@ -10,9 +10,9 @@ import java.util.List;
  * Service xử lý câu hỏi xác minh do AI sinh ra.
  *
  * <p>Flow mới (Approach 2: AI hỏi - AI tự trả lời):
- *  1. AI sinh câu hỏi + tự đưa đáp án đúng → lưu vào verifications + correct_answers.
+ *  1. AI sinh câu hỏi + tự đưa đáp án chuẩn → lưu vào verifications + verification_answers.
  *  2. Người mất đồ xem được câu hỏi kèm ảnh mờ, gửi câu trả lời qua claim.
- *  3. Server so sánh với correct_answers, nếu đủ score → trả FullPostDetails (ảnh rõ + liên hệ).
+ *  3. Server so sánh với verification_answers, nếu đủ score → trả FullPostDetails (ảnh rõ + liên hệ).
  *
  * <p>Hợp đồng:
  *  - getQuestionsForPost: lấy câu hỏi (cho chủ post xem hoặc claimer).
@@ -34,7 +34,7 @@ public interface VerificationService {
     List<VerificationQuestion> getQuestionDtos(Long postId);
 
     /**
-     * Xử lý claim: người mất đồ gửi câu trả lời → so với correct_answers.
+     * Xử lý claim: người mất đồ gửi câu trả lời → so với verification_answers.
      * Nếu đạt threshold → trả FullPostDetails (ảnh rõ + thông tin liên hệ).
      * Nếu không → trả rejected với score.
      */

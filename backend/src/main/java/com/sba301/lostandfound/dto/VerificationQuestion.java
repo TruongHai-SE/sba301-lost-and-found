@@ -13,8 +13,8 @@ import java.util.List;
  *  - MULTIPLE_CHOICE: user chọn 1 trong các options
  *  - BOOLEAN:        câu hỏi có/không
  *
- * Khi user (chủ post) trả lời → lưu vào {@code CorrectAnswer}.
- * Khi claimer khác trả lời → lưu vào {@code VerificationResponse}, score so với CorrectAnswer.
+ * Khi user (chủ post) trả lời → lưu vào {@code VerificationAnswer}.
+ * Khi claimer khác trả lời → lưu vào {@code ClaimAttemptAnswer}, score so với VerificationAnswer.
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record VerificationQuestion(

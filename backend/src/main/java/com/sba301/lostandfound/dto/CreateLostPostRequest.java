@@ -55,6 +55,6 @@ public class CreateLostPostRequest {
     }
 
     public boolean hasImage() {
-        return image != null && !image.isEmpty();
+        return (image != null && !image.isEmpty()) || (imageUrl != null && !imageUrl.isBlank());
     }
 }

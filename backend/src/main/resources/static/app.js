@@ -253,7 +253,7 @@ async function checkSystemHealth() {
         const clipInd = document.getElementById('status-clip');
         const ollamaInd = document.getElementById('status-ollama');
 
-        if (healthData.clip === 'available' || healthData.clip === 'ok') {
+        if (data.clip === 'available' || data.clip === 'ok') {
             clipInd.textContent = 'ONLINE ✔';
             clipInd.className = 'status-indicator ok';
         } else {
@@ -261,10 +261,10 @@ async function checkSystemHealth() {
             clipInd.className = 'status-indicator error';
         }
 
-        if (healthData.ollama === 'available' || healthData.ollama === 'ok') {
+        if (data.ollama === 'available' || data.ollama === 'ok') {
             ollamaInd.textContent = 'ONLINE ✔';
             ollamaInd.className = 'status-indicator ok';
-        } else if (healthData.ollama === 'disabled') {
+        } else if (data.ollama === 'disabled') {
             ollamaInd.textContent = 'TẮT ⚠️';
             ollamaInd.className = 'status-indicator warning';
         } else {
@@ -686,7 +686,7 @@ async function handleSearch(event) {
             const textQuery = document.getElementById('search-text-input').value;
             if (!textQuery) throw new Error('Vui lòng nhập từ khóa tìm kiếm');
             
-            response = await authenticatedFetch(`${API_BASE}/search/text`, {
+            response = await authenticatedFetch(`${API_BASE}/posts/search/text`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -712,7 +712,7 @@ async function handleSearch(event) {
             }
             
             // Append query parameters
-            const url = new URL(`${window.location.origin}${API_BASE}/search`);
+            const url = new URL(`${window.location.origin}${API_BASE}/posts/search`);
             url.searchParams.append('top_k', topK);
             url.searchParams.append('target_type', targetType);
 

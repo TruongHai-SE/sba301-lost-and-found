@@ -60,8 +60,8 @@ public class Post {
     @Column(name = "event_time")
     private LocalDateTime eventTime;
 
-    @Column(name = "create_at")
-    private LocalDateTime createAt;
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
 
     @Enumerated(EnumType.STRING)
     @Column(length = 10)

@@ -16,14 +16,21 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+/**
+ * Lưu đáp án chuẩn của câu hỏi xác minh ({@link Verification}).
+ *
+ * <p>Đây là đáp án mà chủ đồ vật (hoặc AI) cung cấp khi đăng bài FOUND.
+ * Khi người khác claim, server sẽ so sánh câu trả lời của họ với entity này
+ * để tính điểm xác minh.
+ */
 @Entity
-@Table(name = "correct_answers")
+@Table(name = "verification_answers")
 @Getter
 @Setter
 @Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
-public class CorrectAnswer {
+public class VerificationAnswer {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

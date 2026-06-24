@@ -9,7 +9,7 @@ public record PostAdminDTO(
     @JsonProperty("title") String title,
     @JsonProperty("type") String type,
     @JsonProperty("status") String status,
-    @JsonProperty("create_at") LocalDateTime createAt,
+    @JsonProperty("created_at") LocalDateTime createdAt,
     @JsonProperty("delete_at") LocalDateTime deleteAt,
     @JsonProperty("owner_id") Long ownerId,
     @JsonProperty("owner_phone") String ownerPhone
@@ -20,7 +20,7 @@ public record PostAdminDTO(
             post.getTitle(),
             post.getType().name(),
             post.getStatus().name(),
-            post.getCreateAt(),
+            post.getCreatedAt(),
             post.getDeleteAt(),
             post.getUser() != null ? post.getUser().getId() : null,
             post.getUser() != null ? post.getUser().getPhone() : null

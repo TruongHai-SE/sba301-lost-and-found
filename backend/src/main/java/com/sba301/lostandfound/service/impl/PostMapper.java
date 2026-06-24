@@ -48,7 +48,7 @@ public class PostMapper {
             originalUrl,
             post.getType() == null ? null : post.getType().name(),
             post.getEventTime(),
-            post.getCreateAt(),
+            post.getCreatedAt(),
             LocationInfo.from(post.getLocation()),
             score,
             questions,
@@ -100,7 +100,7 @@ public class PostMapper {
             post.getType() == null ? null : post.getType().name(),
             post.getEventTime(),
             post.getStatus() == null ? null : post.getStatus().name(),
-            post.getCreateAt(),
+            post.getCreatedAt(),
             LocationInfo.from(post.getLocation()),
             owner,
             verificationScore

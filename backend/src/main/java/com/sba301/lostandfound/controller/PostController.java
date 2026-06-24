@@ -7,14 +7,13 @@ import com.sba301.lostandfound.dto.CreatePostResponse;
 import com.sba301.lostandfound.dto.PageResponse;
 import com.sba301.lostandfound.dto.PostAdminDTO;
 import com.sba301.lostandfound.dto.QuestionSuggestionResponse;
-import com.sba301.lostandfound.dto.OllamaQuestionsResponse;
 import com.sba301.lostandfound.dto.GenerateDescriptionResponse;
-import com.sba301.lostandfound.dto.OllamaTags;
+import com.sba301.lostandfound.dto.SearchResponse;
+import com.sba301.lostandfound.dto.SearchByTextRequest;
 import com.sba301.lostandfound.entity.enums.PostStatus;
 import com.sba301.lostandfound.entity.enums.PostType;
 import com.sba301.lostandfound.service.PostService;
-import com.sba301.lostandfound.service.ImageStorageService;
-import com.sba301.lostandfound.service.ImageAnalysisService;
+import com.sba301.lostandfound.service.SearchService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -29,9 +28,9 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.multipart.MultipartFile;
-import java.util.Optional;
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/posts")
@@ -39,60 +38,58 @@ import java.util.List;
 public class PostController {
 
     private final PostService postService;
-    private final ImageStorageService imageStorageService;
-    private final ImageAnalysisService imageAnalysisService;
+    private final SearchService searchService;
 
     @PostMapping(value = "/suggest-questions", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<QuestionSuggestionResponse>> suggestQuestions(
             @RequestParam("image") MultipartFile image,
             @RequestParam(value = "description", required = false) String description) {
-        
-        if (image == null || image.isEmpty()) {
-            throw new org.springframework.web.server.ResponseStatusException(
-                HttpStatus.BAD_REQUEST, "Image is required to generate questions");
-        }
-        
-        String imageUrl = imageStorageService.upload(image);
-        Optional<OllamaQuestionsResponse> suggestionsOpt = imageAnalysisService.generateQuestions(imageUrl, description);
-        
-        List<OllamaQuestionsResponse.OllamaQuestion> questions = suggestionsOpt
-                .map(OllamaQuestionsResponse::questions)
-                .orElse(List.of());
-        
-        QuestionSuggestionResponse response = new QuestionSuggestionResponse(imageUrl, questions);
+        QuestionSuggestionResponse response = postService.suggestQuestions(image, description);
         return ResponseEntity.ok(ApiResponse.success(response, "Questions generated successfully"));
     }
 
     /**
      * Người dùng CHỦ ĐỘNG bấm nút để AI sinh mô tả từ ảnh (trước khi đăng tin).
-     *
-     * Đồng bộ: trả description + tags ngay để frontend điền vào ô mô tả.
-     * Không tạo post nào. Trả kèm imageUrl đã upload để submit form tái sử dụng,
-     * tránh upload ảnh lần hai.
      */
     @PostMapping(value = "/generate-description", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<GenerateDescriptionResponse>> generateDescription(
             @RequestParam("image") MultipartFile image,
             @RequestParam(value = "description", required = false) String description) {
-
-        if (image == null || image.isEmpty()) {
-            throw new org.springframework.web.server.ResponseStatusException(
-                HttpStatus.BAD_REQUEST, "Image is required to generate description");
-        }
-
-        String imageUrl = imageStorageService.upload(image);
-        Optional<OllamaTags> tagsOpt = imageAnalysisService.analyzeImage(imageUrl, description);
-
-        if (tagsOpt.isEmpty()) {
-            throw new org.springframework.web.server.ResponseStatusException(
-                HttpStatus.SERVICE_UNAVAILABLE,
-                "AI could not generate a description from the image. Please try again or write it manually.");
-        }
-
-        OllamaTags tags = tagsOpt.get();
-        GenerateDescriptionResponse response =
-            new GenerateDescriptionResponse(imageUrl, tags.description(), tags.tags());
+        GenerateDescriptionResponse response = postService.generateDescription(image, description);
         return ResponseEntity.ok(ApiResponse.success(response, "Description generated successfully"));
+    }
+
+    /**
+     * Search bằng ảnh (multipart/form-data) kết hợp CLIP embedding.
+     * Body:
+     *  - image: file ảnh (bắt buộc)
+     *  - description: text mô tả bổ sung (optional)
+     *  - top_k: số kết quả tối đa (optional, default 10)
+     *  - target_type: LOST | FOUND | ALL (optional, default FOUND)
+     */
+    @PostMapping(value = "/search", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse<SearchResponse>> searchByImage(
+            @RequestPart("image") MultipartFile image,
+            @RequestParam(value = "description", required = false) String description,
+            @RequestParam(value = "top_k", required = false) Integer topK,
+            @RequestParam(value = "target_type", required = false) String targetType
+    ) {
+        SearchResponse result = searchService.searchByImage(image, description, topK, targetType);
+        return ResponseEntity.ok(ApiResponse.success(result, "Search completed successfully"));
+    }
+
+    /**
+     * Search bằng text (application/json).
+     * Body: { "text": "...", "top_k": 10, "target_type": "FOUND" }
+     */
+    @PostMapping(value = "/search/text", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<ApiResponse<SearchResponse>> searchByText(@RequestBody SearchByTextRequest request) {
+        SearchResponse result = searchService.searchByText(
+                request.text(),
+                request.topK(),
+                request.targetType()
+        );
+        return ResponseEntity.ok(ApiResponse.success(result, "Search completed successfully"));
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -117,7 +114,7 @@ public class PostController {
     public ResponseEntity<ApiResponse<PageResponse<PostAdminDTO>>> getAllPosts(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "createAt") String sortBy,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
             @RequestParam(defaultValue = "DESC") String sortDir,
             @RequestParam(required = false) PostType type,
             @RequestParam(required = false) PostStatus status) {

@@ -34,6 +34,8 @@ clip-service/yolov8n.pt
 env.zip
 *.zip
 *.log
+*.sql
+scripts/db/
 
 # ===== OS =====
 .DS_Store

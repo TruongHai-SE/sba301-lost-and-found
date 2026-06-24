@@ -43,6 +43,12 @@ public class CreateLostPostRequest {
 
     private MultipartFile image;
 
+    /**
+     * URL ảnh đã upload trước đó (vd: khi người dùng bấm "Sinh mô tả từ ảnh").
+     * Dùng để tái sử dụng ảnh, tránh upload lần hai. Bỏ qua nếu {@link #image} có file.
+     */
+    private String imageUrl;
+
     public boolean hasLocation() {
         return address != null || city != null || district != null
             || latitude != null || longitude != null || locationLevel != null;

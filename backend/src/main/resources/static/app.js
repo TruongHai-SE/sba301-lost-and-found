@@ -395,6 +395,57 @@ async function autoGenerateQuestions(file) {
     }
 }
 
+// Người dùng CHỦ ĐỘNG bấm nút "✨ Sinh mô tả từ ảnh (AI)".
+// Gọi endpoint đồng bộ, điền kết quả vào ô mô tả để user xem & chỉnh lại.
+async function generateDescriptionFromImage() {
+    const fileInput = document.getElementById('post-image');
+    if (!fileInput.files || !fileInput.files[0]) {
+        showToast('Vui lòng chọn ảnh trước khi sinh mô tả.', 'warning');
+        return;
+    }
+
+    const btn = document.getElementById('generate-desc-btn');
+    const descBox = document.getElementById('post-description');
+    const originalLabel = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '⏳ Đang phân tích ảnh...';
+
+    const formData = new FormData();
+    formData.append('image', fileInput.files[0]);
+    // Mô tả hiện có (nếu có) làm context để AI sinh sát hơn
+    const existingDesc = descBox.value.trim();
+    if (existingDesc) {
+        formData.append('description', existingDesc);
+    }
+
+    try {
+        const response = await authenticatedFetch(`${API_BASE}/posts/generate-description`, {
+            method: 'POST',
+            body: formData
+        });
+
+        const resData = await response.json().catch(() => null);
+        if (!response.ok) {
+            const msg = (resData && (resData.message || resData.error)) || `Lỗi ${response.status}`;
+            throw new Error(msg);
+        }
+
+        const data = (resData && resData.data) || resData;
+        descBox.value = data.description || '';
+        // Tái sử dụng ảnh đã upload khi submit, tránh upload lần hai
+        if (data.imageUrl) {
+            state.preUploadedImageUrl = data.imageUrl;
+        }
+        showToast('✨ Đã sinh mô tả từ ảnh. Bạn có thể chỉnh lại tuỳ ý.', 'success');
+    } catch (err) {
+        console.error('Generate description failed:', err);
+        showToast(err.message || 'Sinh mô tả thất bại. Vui lòng thử lại hoặc tự viết.', 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalLabel;
+    }
+}
+
 function renderQuestionItem(q = {}, idx = null) {
     const container = document.getElementById('verification-questions-list');
     const questionId = idx !== null ? idx : container.children.length;
@@ -518,7 +569,11 @@ async function handleCreatePost(event) {
     if (long) formData.append('longitude', long);
     if (address || city || district || lat || long) formData.append('locationLevel', 1);
 
-    if (fileInput.files && fileInput.files[0] && !state.preUploadedImageUrl) {
+    // Nếu ảnh đã được upload trước đó (sinh mô tả / sinh câu hỏi) thì dùng lại URL,
+    // tránh upload lần hai. Ngược lại gửi file gốc. Áp dụng cho cả LOST và FOUND.
+    if (state.preUploadedImageUrl) {
+        formData.append('imageUrl', state.preUploadedImageUrl);
+    } else if (fileInput.files && fileInput.files[0]) {
         formData.append('image', fileInput.files[0]);
     }
 
@@ -550,10 +605,6 @@ async function handleCreatePost(event) {
         
         if (customQuestions.length > 0) {
             formData.append('customQuestionsJson', JSON.stringify(customQuestions));
-        }
-        
-        if (state.preUploadedImageUrl) {
-            formData.append('imageUrl', state.preUploadedImageUrl);
         }
     }
 

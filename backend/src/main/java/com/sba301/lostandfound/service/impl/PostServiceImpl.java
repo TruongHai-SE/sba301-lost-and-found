@@ -67,7 +67,15 @@ public class PostServiceImpl implements PostService {
             request.getAddress(), request.getCity(), request.getDistrict(),
             request.getLatitude(), request.getLongitude(), request.getLocationLevel()
         ) : null;
-        Image image = request.hasImage() ? uploadAndSaveImage(request.getImage()) : null;
+        Image image = null;
+        if (request.getImage() != null && !request.getImage().isEmpty()) {
+            image = uploadAndSaveImage(request.getImage());
+        } else if (request.getImageUrl() != null && !request.getImageUrl().isBlank()) {
+            image = imageRepository.save(Image.builder()
+                .url(request.getImageUrl().trim())
+                .createAt(LocalDateTime.now())
+                .build());
+        }
 
         HidePostType hidePostType =
             request.getHidePostType() == null ? HidePostType.PUBLIC : request.getHidePostType();

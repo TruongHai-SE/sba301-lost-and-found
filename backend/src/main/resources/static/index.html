@@ -135,8 +135,13 @@
                                 </div>
 
                                 <div class="input-group">
-                                    <label for="post-description">Mô tả chi tiết</label>
-                                    <textarea id="post-description" rows="3" placeholder="Nhập mô tả của bạn. Nếu nhập quá ngắn (dưới 30 ký tự) và có tải ảnh lên, AI sẽ tự động thay thế bằng mô tả chi tiết do nó phân tích ảnh."></textarea>
+                                    <div class="label-with-action">
+                                        <label for="post-description">Mô tả chi tiết</label>
+                                        <button type="button" id="generate-desc-btn" class="btn-secondary btn-ai-generate" onclick="generateDescriptionFromImage()">
+                                            ✨ Sinh mô tả từ ảnh (AI)
+                                        </button>
+                                    </div>
+                                    <textarea id="post-description" rows="3" placeholder="Tự viết mô tả, hoặc tải ảnh lên rồi bấm '✨ Sinh mô tả từ ảnh (AI)' để AI gợi ý nội dung. Bạn có thể chỉnh sửa lại tuỳ ý."></textarea>
                                 </div>
 
                                 <div class="form-section-title">📍 Vị trí địa lý (Không bắt buộc)</div>

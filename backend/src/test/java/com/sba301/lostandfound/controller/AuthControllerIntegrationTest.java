@@ -45,6 +45,12 @@ public class AuthControllerIntegrationTest {
     private PostService postService;
 
     @MockitoBean
+    private com.sba301.lostandfound.service.ImageStorageService imageStorageService;
+
+    @MockitoBean
+    private com.sba301.lostandfound.service.ImageAnalysisService imageAnalysisService;
+
+    @MockitoBean
     private SystemHealthService systemHealthService;
 
     @MockitoBean

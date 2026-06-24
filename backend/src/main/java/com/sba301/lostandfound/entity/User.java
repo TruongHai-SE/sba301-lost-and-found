@@ -1,5 +1,6 @@
 package com.sba301.lostandfound.entity;
 
+import lombok.Builder;
 import com.sba301.lostandfound.entity.enums.UserType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -17,13 +18,12 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import lombok.AllArgsConstructor;
+
 @Entity
 @Table(name = "users")
-@Getter
-@Setter
 @Builder
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
-@AllArgsConstructor(access = AccessLevel.PRIVATE)
+@AllArgsConstructor
 public class User {
 
     @Id

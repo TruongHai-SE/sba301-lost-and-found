@@ -7,6 +7,7 @@ import lombok.Getter;
 import lombok.Setter;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.multipart.MultipartFile;
+import java.util.List;
 
 /**
  * Body của API tạo tin nhặt được đồ. Gửi dưới dạng multipart/form-data nên dùng class
@@ -37,6 +38,8 @@ public class CreateFoundPostRequest {
 
     private Double latitude;
 
+    private String phone;
+    
     private Double longitude;
 
     private Integer locationLevel;
@@ -46,6 +49,8 @@ public class CreateFoundPostRequest {
     private String customQuestionsJson;
 
     private String imageUrl;
+
+    private List<VerificationQuestionRequest> verifications;
 
     public boolean hasLocation() {
         return address != null || city != null || district != null

@@ -18,15 +18,21 @@ ping 127.0.0.1 -n 6 > nul
 
 :: 2. Check local model files
 echo [2/4] Checking local model files...
-if not exist "%~dp0..\..\.local\models\clip_onnx_large_model\model.onnx" (
-    echo [ERROR] Missing .local\models\clip_onnx_large_model\model.onnx
-    echo         Run: .\clip-service\.venv\Scripts\python.exe scripts\download_models.py
+if not exist "%~dp0..\..\clip-service\.local\models\clip_onnx_large_model\model_quantized.onnx" (
+    echo [ERROR] Missing clip-service\.local\models\clip_onnx_large_model\model_quantized.onnx
+    echo         Run: cd clip-service && .venv\Scripts\python.exe scripts\export_and_prepare_models.py
     pause
     exit /b 1
 )
-if not exist "%~dp0..\..\.local\models\yolov8n.pt" (
-    echo [ERROR] Missing .local\models\yolov8n.pt
-    echo         Run: .\clip-service\.venv\Scripts\python.exe scripts\download_models.py
+if not exist "%~dp0..\..\clip-service\.local\models\opus_mt_vi_en_onnx\pytorch_model.bin" (
+    echo [ERROR] Missing clip-service\.local\models\opus_mt_vi_en_onnx\pytorch_model.bin
+    echo         Run: cd clip-service && .venv\Scripts\python.exe scripts\export_and_prepare_models.py
+    pause
+    exit /b 1
+)
+if not exist "%~dp0..\..\clip-service\.local\models\yolov8n.pt" (
+    echo [ERROR] Missing clip-service\.local\models\yolov8n.pt
+    echo         Run: cd clip-service && .venv\Scripts\python.exe scripts\export_and_prepare_models.py
     pause
     exit /b 1
 )

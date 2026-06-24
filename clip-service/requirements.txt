@@ -19,6 +19,8 @@ ultralytics>=8.2.0
 
 # Translation
 deep-translator>=1.11.4
+sacremoses>=0.1.1
+sentencepiece>=0.2.0
 
 # PostgreSQL + pgvector
 psycopg2-binary>=2.9.9

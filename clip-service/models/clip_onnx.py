@@ -2,24 +2,24 @@ import os
 
 import numpy as np
 import onnxruntime as ort
-from deep_translator import GoogleTranslator
 from PIL import Image
 from transformers import CLIPProcessor
 
 from config import settings
+from models.translator_onnx import OfflineTranslator
 
 
 class CLIPOnnxEngine:
-    """CLIP ViT-L/14 inference engine using ONNX Runtime directly."""
+    """CLIP ViT-L/14 inference engine using Quantized ONNX Runtime directly."""
 
     def __init__(self, model_dir: str | None = None):
         model_dir = model_dir or settings.resolved_clip_model_dir
-        print(f"[CLIP] Loading ONNX model from {model_dir} ...")
+        print(f"[CLIP] Loading Quantized ONNX model from {model_dir} ...")
 
         self.processor = CLIPProcessor.from_pretrained(model_dir)
 
         # The ONNX model handles both text and image input.
-        model_path = os.path.join(model_dir, "model.onnx")
+        model_path = os.path.join(model_dir, "model_quantized.onnx")
         self.session = ort.InferenceSession(
             model_path,
             providers=["CPUExecutionProvider"],
@@ -30,7 +30,7 @@ class CLIPOnnxEngine:
         print(f"[CLIP] Model inputs: {self._input_names}")
         print(f"[CLIP] Model outputs: {self._output_names}")
 
-        self.translator = GoogleTranslator(source="auto", target="en")
+        self.translator = OfflineTranslator()
 
         # CLIP requires both inputs, so text-only encoding uses a dummy image.
         self._dummy_image = Image.new("RGB", (224, 224), (0, 0, 0))
@@ -53,9 +53,11 @@ class CLIPOnnxEngine:
         """Convert text to a normalized 768-dimensional vector."""
         if translate:
             try:
-                text = self.translator.translate(text)
-                print(f"[CLIP] Translated: {text}")
-            except Exception:
+                translated = self.translator.translate(text)
+                print(f"[CLIP] Translated: '{text}' -> '{translated}'")
+                text = translated
+            except Exception as e:
+                print(f"[CLIP] Translation fallback: {e}")
                 pass
 
         inputs = self.processor(

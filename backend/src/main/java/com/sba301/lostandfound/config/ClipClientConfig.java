@@ -17,9 +17,14 @@ public class ClipClientConfig {
             
         JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(httpClient);
 
-        return RestClient.builder()
+        RestClient.Builder builder = RestClient.builder()
             .requestFactory(requestFactory)
-            .baseUrl(properties.baseUrl().toString())
-            .build();
+            .baseUrl(properties.baseUrl().toString());
+
+        if (properties.apiKey() != null && !properties.apiKey().isBlank()) {
+            builder.defaultHeader("X-API-Key", properties.apiKey());
+        }
+
+        return builder.build();
     }
 }

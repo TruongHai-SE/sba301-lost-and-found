@@ -20,6 +20,7 @@ clip-service/.pytest_cache/
 
 # ===== ONNX Model (download separately) =====
 .local/
+clip-service/.local/
 clip-service/clip_onnx_large_model/
 clip-service/yolov8n.pt
 
@@ -30,6 +31,8 @@ clip-service/yolov8n.pt
 
 # ===== Environment =====
 .env
+env.zip
+*.zip
 *.log
 
 # ===== OS =====

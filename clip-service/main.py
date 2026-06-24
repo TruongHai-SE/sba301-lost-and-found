@@ -14,6 +14,19 @@ svc: EmbeddingService | None = None
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global svc
+    import os
+    import logging
+    dbg_logger = logging.getLogger("uvicorn.error")
+    dbg_logger.info("====== [DEBUG] Listing files in /app/.local ======")
+    if os.path.exists("/app/.local"):
+        for root, dirs, files in os.walk("/app/.local"):
+            dbg_logger.info(f"Dir: {root}")
+            for f in files:
+                dbg_logger.info(f"  File: {f}")
+    else:
+         dbg_logger.info("/app/.local directory does not exist!")
+    dbg_logger.info("====== [DEBUG] End of file listing ======")
+    
     svc = EmbeddingService()
     yield
     if svc:
@@ -56,6 +69,25 @@ async def global_exception_handler(request, exc):
 
 
 
+from fastapi.security import APIKeyHeader
+from fastapi import Depends
+from config import settings
+
+API_KEY_NAME = "X-API-Key"
+api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
+
+async def get_api_key(header_value: str = Depends(api_key_header)):
+    # Bỏ qua xác thực nếu token mặc định chưa được thay đổi (ví dụ ở local)
+    if settings.clip_api_token == "your-secure-api-token-here":
+        return header_value
+    if not header_value or header_value != settings.clip_api_token:
+        raise HTTPException(
+            status_code=403,
+            detail="Could not validate credentials. Invalid or missing X-API-Key."
+        )
+    return header_value
+
+
 # Request / Response models
 class EmbedImageRequest(BaseModel):
     post_id: int
@@ -86,7 +118,7 @@ class SearchRequest(BaseModel):
 
 
 # Routes
-@app.post("/api/v1/embeddings/image")
+@app.post("/api/v1/embeddings/image", dependencies=[Depends(get_api_key)])
 async def embed_image(req: EmbedImageRequest):
     """Encode image, store vector, and auto cross-match with opposite post type."""
     try:
@@ -97,7 +129,7 @@ async def embed_image(req: EmbedImageRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/api/v1/embeddings/text")
+@app.post("/api/v1/embeddings/text", dependencies=[Depends(get_api_key)])
 async def embed_text(req: EmbedTextRequest):
     """Encode text, store vector, and auto cross-match with opposite post type."""
     try:
@@ -108,7 +140,7 @@ async def embed_text(req: EmbedTextRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/api/v1/search")
+@app.post("/api/v1/search", dependencies=[Depends(get_api_key)])
 async def search(req: SearchRequest):
     """Manually search by text or image URL."""
     if not req.query_text and not req.query_image_url:
@@ -126,14 +158,14 @@ async def search(req: SearchRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.delete("/api/v1/embeddings/posts/{post_id}")
+@app.delete("/api/v1/embeddings/posts/{post_id}", dependencies=[Depends(get_api_key)])
 async def delete_embeddings(post_id: int):
     """Delete all vectors for a post."""
     count = svc.delete_post_embeddings(post_id)
     return {"status": "deleted", "count": count}
 
 
-@app.get("/api/v1/health")
+@app.api_route("/api/v1/health", methods=["GET", "HEAD"])
 async def health():
     """Check service health."""
     return {

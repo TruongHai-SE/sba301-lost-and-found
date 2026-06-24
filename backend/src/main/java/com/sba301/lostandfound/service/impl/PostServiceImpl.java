@@ -80,7 +80,6 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
-    @Transactional
     public CreatePostResponse createLostPost(CreateLostPostRequest request) {
         User user = resolveUser(request.getUserId());
         Location location = request.hasLocation() ? saveLocation(request) : null;

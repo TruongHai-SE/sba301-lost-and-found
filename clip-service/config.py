@@ -15,17 +15,22 @@ class Settings(BaseSettings):
     postgres_port: int = 5433
     postgres_db: str = "lostfound"
     postgres_user: str = "postgres"
-    postgres_password: str
+    postgres_password: str = "12345"
+    database_url_override: str | None = None
 
     # CLIP
     clip_model_dir: str = ".local/models/clip_onnx_large_model"
     yolo_model_path: str = ".local/models/yolov8n.pt"
+    translation_model_dir: str = ".local/models/opus_mt_vi_en_onnx"
+    clip_api_token: str = "your-secure-api-token-here"
     clip_score_min: float = 21.0
     clip_score_max: float = 29.0
     clip_match_threshold: float = 0.5
 
     @property
     def database_url(self) -> str:
+        if self.database_url_override:
+            return self.database_url_override
         return (
             f"postgresql://{self.postgres_user}:{self.postgres_password}"
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
@@ -38,6 +43,10 @@ class Settings(BaseSettings):
     @property
     def resolved_yolo_model_path(self) -> str:
         return self._resolve_repo_path(self.yolo_model_path)
+
+    @property
+    def resolved_translation_model_dir(self) -> str:
+        return self._resolve_repo_path(self.translation_model_dir)
 
     @staticmethod
     def _resolve_repo_path(path: str) -> str:

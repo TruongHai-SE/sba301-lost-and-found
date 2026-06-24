@@ -45,22 +45,16 @@ public class AuthControllerIntegrationTest {
     private PostService postService;
 
     @MockitoBean
-    private com.sba301.lostandfound.service.ImageStorageService imageStorageService;
+    private ImageStorageService imageStorageService;
 
     @MockitoBean
-    private com.sba301.lostandfound.service.ImageAnalysisService imageAnalysisService;
+    private ImageAnalysisService imageAnalysisService;
 
     @MockitoBean
     private SystemHealthService systemHealthService;
 
     @MockitoBean
     private JwtTokenProvider jwtTokenProvider;
-
-    @MockitoBean
-    private ImageStorageService imageStorageService;
-
-    @MockitoBean
-    private ImageAnalysisService imageAnalysisService;
 
     @org.springframework.boot.test.context.TestConfiguration
     static class TestConfig {

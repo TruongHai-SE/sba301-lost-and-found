@@ -8,6 +8,8 @@ import com.sba301.lostandfound.dto.PageResponse;
 import com.sba301.lostandfound.dto.PostAdminDTO;
 import com.sba301.lostandfound.dto.QuestionSuggestionResponse;
 import com.sba301.lostandfound.dto.OllamaQuestionsResponse;
+import com.sba301.lostandfound.dto.GenerateDescriptionResponse;
+import com.sba301.lostandfound.dto.OllamaTags;
 import com.sba301.lostandfound.entity.enums.PostStatus;
 import com.sba301.lostandfound.entity.enums.PostType;
 import com.sba301.lostandfound.service.PostService;

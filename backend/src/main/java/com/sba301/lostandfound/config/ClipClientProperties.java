@@ -4,5 +4,5 @@ import java.net.URI;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "services.clip")
-public record ClipClientProperties(URI baseUrl) {
+public record ClipClientProperties(URI baseUrl, String apiKey) {
 }

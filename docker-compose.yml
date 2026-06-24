@@ -17,18 +17,4 @@ services:
       timeout: 5s
       retries: 5
 
-  # Ollama phục vụ cho AI enrichment (Qwen-VL)
-  # Cần ít nhất 8GB RAM cho qwen2.5vl 7B. Pull model lần đầu:
-  #   docker exec -it lostfound-ollama ollama pull qwen2.5vl
-  ollama:
-    image: ollama/ollama:latest
-    container_name: lostfound-ollama
-    restart: unless-stopped
-    ports:
-      - "${OLLAMA_PORT:-11434}:11434"
-    volumes:
-      - ./docker-data/ollama:/root/.ollama
-    environment:
-      - OLLAMA_KEEP_ALIVE=10m
-    # GPU NVIDIA bị tắt: Mac không hỗ trợ nvidia-container-toolkit.
-    # Ollama sẽ chạy trên CPU (chậm hơn nhưng hoạt động bình thường).
+

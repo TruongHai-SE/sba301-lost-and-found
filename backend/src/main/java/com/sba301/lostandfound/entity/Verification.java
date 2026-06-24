@@ -26,8 +26,9 @@ public class Verification {
     @JoinColumn(name = "post_id")
     private Post post;
 
+    @Builder.Default
     @Column(columnDefinition = "text")
-    private String title;
+    private String title = "AI Verification";
 
     private Integer importantPoint;
 
@@ -54,81 +55,4 @@ public class Verification {
      */
     @Column(columnDefinition = "text")
     private String options;
-
-    public Verification() {
-    }
-
-    /**
-     * Convenience constructor cho PostAiEnrichmentService khi tạo câu hỏi từ AI.
-     */
-    public Verification(Post post, String question, String questionType, Integer questionIndex,
-                        String options, Integer importantPoint) {
-        this.post = post;
-        this.question = question;
-        this.questionType = questionType;
-        this.questionIndex = questionIndex;
-        this.options = options;
-        this.importantPoint = importantPoint;
-        this.title = "AI Verification";
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public Post getPost() {
-        return post;
-    }
-
-    public String getTitle() {
-        return title;
-    }
-
-    public Integer getImportantPoint() {
-        return importantPoint;
-    }
-
-    public String getQuestion() {
-        return question;
-    }
-
-    public String getQuestionType() {
-        return questionType;
-    }
-
-    public Integer getQuestionIndex() {
-        return questionIndex;
-    }
-
-    public String getOptions() {
-        return options;
-    }
-
-    public void setPost(Post post) {
-        this.post = post;
-    }
-
-    public void setTitle(String title) {
-        this.title = title;
-    }
-
-    public void setImportantPoint(Integer importantPoint) {
-        this.importantPoint = importantPoint;
-    }
-
-    public void setQuestion(String question) {
-        this.question = question;
-    }
-
-    public void setQuestionType(String questionType) {
-        this.questionType = questionType;
-    }
-
-    public void setQuestionIndex(Integer questionIndex) {
-        this.questionIndex = questionIndex;
-    }
-
-    public void setOptions(String options) {
-        this.options = options;
-    }
 }

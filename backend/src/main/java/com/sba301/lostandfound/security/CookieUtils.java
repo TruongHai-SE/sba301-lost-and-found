@@ -16,7 +16,7 @@ public final class CookieUtils {
         return ResponseCookie.from(REFRESH_TOKEN_COOKIE, token)
                 .httpOnly(true)
                 .secure(secure)
-                .path("/")
+                .path("/api/v1/auth")
                 .maxAge(maxAgeSeconds)
                 .sameSite("Lax")
                 .build();
@@ -26,7 +26,7 @@ public final class CookieUtils {
         return ResponseCookie.from(REFRESH_TOKEN_COOKIE, "")
                 .httpOnly(true)
                 .secure(secure)
-                .path("/")
+                .path("/api/v1/auth")
                 .maxAge(0)
                 .sameSite("Lax")
                 .build();

@@ -61,6 +61,38 @@ public class PostController {
         return ResponseEntity.ok(ApiResponse.success(response, "Questions generated successfully"));
     }
 
+    /**
+     * Người dùng CHỦ ĐỘNG bấm nút để AI sinh mô tả từ ảnh (trước khi đăng tin).
+     *
+     * Đồng bộ: trả description + tags ngay để frontend điền vào ô mô tả.
+     * Không tạo post nào. Trả kèm imageUrl đã upload để submit form tái sử dụng,
+     * tránh upload ảnh lần hai.
+     */
+    @PostMapping(value = "/generate-description", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse<GenerateDescriptionResponse>> generateDescription(
+            @RequestParam("image") MultipartFile image,
+            @RequestParam(value = "description", required = false) String description) {
+
+        if (image == null || image.isEmpty()) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                HttpStatus.BAD_REQUEST, "Image is required to generate description");
+        }
+
+        String imageUrl = imageStorageService.upload(image);
+        Optional<OllamaTags> tagsOpt = imageAnalysisService.analyzeImage(imageUrl, description);
+
+        if (tagsOpt.isEmpty()) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                "AI could not generate a description from the image. Please try again or write it manually.");
+        }
+
+        OllamaTags tags = tagsOpt.get();
+        GenerateDescriptionResponse response =
+            new GenerateDescriptionResponse(imageUrl, tags.description(), tags.tags());
+        return ResponseEntity.ok(ApiResponse.success(response, "Description generated successfully"));
+    }
+
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<CreatePostResponse>> createLostPost(
             @Valid @ModelAttribute CreateLostPostRequest request) {

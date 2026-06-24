@@ -37,6 +37,73 @@ public class SecurityConfig {
                 .configure(com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false);
     }
 
+    // =========================================================================
+    // SECURITY FILTER CHAIN
+    // =========================================================================
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        http
+            .csrf(csrf -> csrf.disable())
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .authorizeHttpRequests(auth -> auth
+                // 1. Endpoints within the auth path that REQUIRE authentication
+                .requestMatchers(
+                    "/api/v1/auth/password/setup",
+                    "/api/v1/auth/me"
+                ).authenticated()
+
+                // 2. Public Auth & Identity Endpoints
+                .requestMatchers(
+                    "/api/v1/auth/**"
+                ).permitAll()
+
+                // 3. System & Monitoring Endpoints
+                .requestMatchers(
+                    "/actuator/health",
+                    "/actuator/info",
+                    "/api/v1/system/**"
+                ).permitAll()
+
+                // 4. API Documentation (Swagger/OpenAPI)
+                .requestMatchers(
+                    "/swagger-ui/**",
+                    "/swagger-ui.html",
+                    "/v3/api-docs/**"
+                ).permitAll()
+
+                // 5. Static Assets (Web Client & UI testing)
+                .requestMatchers(
+                    "/",
+                    "/index.html",
+                    "/*.css",
+                    "/*.js",
+                    "/favicon.ico",
+                    "/error"
+                ).permitAll()
+
+                // 6. Admin Panel Endpoints (Requires ADMIN role)
+                .requestMatchers(
+                    "/api/v1/admin/**"
+                ).hasRole("ADMIN")
+
+                // 7. All other application requests (Requires login: USER or ADMIN role)
+                .anyRequest().authenticated()
+            )
+            .exceptionHandling(exceptions -> exceptions
+                .authenticationEntryPoint(authenticationEntryPoint())
+                .accessDeniedHandler(accessDeniedHandler())
+            )
+            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+
+        return http.build();
+    }
+
+    // =========================================================================
+    // EXCEPTION HANDLERS (401 & 403 response wrappers)
+    // =========================================================================
+
     @Bean
     public org.springframework.security.web.AuthenticationEntryPoint authenticationEntryPoint() {
         return (request, response, authException) -> {
@@ -71,40 +138,9 @@ public class SecurityConfig {
         };
     }
 
-    @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http
-            .csrf(csrf -> csrf.disable())
-            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers(
-                    "/api/v1/auth/**",
-                    "/swagger-ui/**",
-                    "/swagger-ui.html",
-                    "/v3/api-docs/**",
-                    "/actuator/health",
-                    "/actuator/info",
-                    "/api/v1/system/**",
-                    // Static files: Testing Web UI
-                    "/",
-                    "/index.html",
-                    "/*.css",
-                    "/*.js",
-                    "/favicon.ico",
-                    "/error"
-                ).permitAll()
-                .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
-                .anyRequest().authenticated()
-            )
-            .exceptionHandling(exceptions -> exceptions
-                .authenticationEntryPoint(authenticationEntryPoint())
-                .accessDeniedHandler(accessDeniedHandler())
-            )
-            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
-
-        return http.build();
-    }
+    // =========================================================================
+    // BEANS & UTILITIES
+    // =========================================================================
 
     @Bean
     public PasswordEncoder passwordEncoder() {

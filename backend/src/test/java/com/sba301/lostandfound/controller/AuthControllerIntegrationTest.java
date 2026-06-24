@@ -12,8 +12,11 @@ import com.sba301.lostandfound.dto.RegisterRequest;
 import com.sba301.lostandfound.security.JwtAuthenticationFilter;
 import com.sba301.lostandfound.security.JwtTokenProvider;
 import com.sba301.lostandfound.service.AuthService;
+import com.sba301.lostandfound.service.ImageAnalysisService;
+import com.sba301.lostandfound.service.ImageStorageService;
 import com.sba301.lostandfound.service.PostService;
 import com.sba301.lostandfound.service.SystemHealthService;
+import com.sba301.lostandfound.service.UserService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -36,6 +39,9 @@ public class AuthControllerIntegrationTest {
     private AuthService authService;
 
     @MockitoBean
+    private UserService userService;
+
+    @MockitoBean
     private PostService postService;
 
     @MockitoBean
@@ -49,6 +55,12 @@ public class AuthControllerIntegrationTest {
 
     @MockitoBean
     private JwtTokenProvider jwtTokenProvider;
+
+    @MockitoBean
+    private ImageStorageService imageStorageService;
+
+    @MockitoBean
+    private ImageAnalysisService imageAnalysisService;
 
     @org.springframework.boot.test.context.TestConfiguration
     static class TestConfig {

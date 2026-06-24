@@ -952,3 +952,36 @@ h1, h2, h3, h4 {
     color: var(--text-main);
 }
 
+
+/* ----------------------------------------------------
+   AI "Sinh mô tả từ ảnh" button (cạnh label Mô tả)
+   ---------------------------------------------------- */
+.label-with-action {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+}
+
+.btn-ai-generate {
+    padding: 7px 14px;
+    font-size: 0.82rem;
+    border-radius: 8px;
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.18) 0%, rgba(6, 182, 212, 0.18) 100%);
+    border: 1px solid rgba(167, 139, 250, 0.35);
+    color: #c4b5fd;
+    white-space: nowrap;
+    line-height: 1.2;
+}
+
+.btn-ai-generate:hover:not(:disabled) {
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.3) 0%, rgba(6, 182, 212, 0.3) 100%);
+    border-color: rgba(167, 139, 250, 0.6);
+}
+
+.btn-ai-generate:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}

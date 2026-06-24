@@ -1,6 +1,5 @@
 package com.sba301.lostandfound.service;
 
-import com.sba301.lostandfound.dto.SearchLostRequest;
 import com.sba301.lostandfound.dto.SearchResponse;
 import org.springframework.web.multipart.MultipartFile;
 

@@ -7,6 +7,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.util.HashMap;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -141,6 +142,23 @@ public class GlobalExceptionHandler {
                 null
         );
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(body);
+    }
+
+    /**
+     * Handles database unique-constraint violations (e.g. concurrent phone update race condition).
+     * Returns 409 Conflict instead of letting it fall through to the generic 500 handler.
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleDataIntegrity(
+            DataIntegrityViolationException ex, HttpServletRequest request) {
+        log.warn("Data integrity violation on path [{}]: {}", request.getRequestURI(), ex.getMostSpecificCause().getMessage());
+        ApiResponse<Void> body = ApiResponse.error(
+                HttpStatus.CONFLICT.value(),
+                "Data conflict: a unique constraint was violated",
+                request.getRequestURI(),
+                null
+        );
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
     }
 
     @ExceptionHandler(Exception.class)

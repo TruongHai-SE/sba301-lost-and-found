@@ -104,17 +104,17 @@ Security exceptions (401/403) are serialized as `ApiResponse<Void>` via `Authent
 
 ### Post Controller — `/api/v1/posts`
 
-| Method | Path     | Auth Required | Description                         |
-|--------|----------|---------------|-------------------------------------|
-| POST   | `/`      | ✅ JWT        | Create a LOST post (multipart form) |
-| POST   | `/found` | ✅ JWT        | Create a FOUND post (multipart form)|
-
-### Search Controller — `/api/v1/search`
-
-| Method | Path    | Auth Required | Description                                         |
-|--------|---------|---------------|-----------------------------------------------------|
-| POST   | `/`     | ✅ JWT        | Search by image (multipart). Returns blurred results.|
-| POST   | `/text` | ✅ JWT        | Search by text (JSON). Returns blurred results.      |
+| Method | Path                  | Auth Required | Description                                            |
+|--------|-----------------------|---------------|--------------------------------------------------------|
+| POST   | `/`                   | ✅ JWT        | Create a LOST post (multipart form)                    |
+| POST   | `/found`              | ✅ JWT        | Create a FOUND post (multipart form)                   |
+| POST   | `/suggest-questions`  | ✅ JWT        | Upload image to get AI-generated question suggestions  |
+| POST   | `/generate-description`| ✅ JWT       | Upload image to get AI-generated description suggestions|
+| POST   | `/search`             | ✅ JWT        | Search by image (multipart). Returns blurred results.   |
+| POST   | `/search/text`        | ✅ JWT        | Search by text (JSON). Returns blurred results.        |
+| GET    | `/all`                | ✅ JWT        | Retrieve posts list (paginated, filterable)            |
+| PATCH  | `/{id}/status`        | ✅ JWT        | Update post status (e.g. APPROVED, SOLVED, REJECTED)   |
+| DELETE | `/{id}`               | ✅ JWT        | Permanently delete a post                              |
 
 ### Verification Controller — `/api/v1/posts/{postId}`
 

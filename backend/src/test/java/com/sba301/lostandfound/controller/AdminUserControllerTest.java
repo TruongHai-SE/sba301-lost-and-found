@@ -106,7 +106,7 @@ class AdminUserControllerTest {
                 .mail("user@test.com")
                 .phone("0901234567")
                 .type(UserType.USER)
-                .createAt(LocalDate.of(2024, 1, 1))
+                .createdAt(LocalDate.of(2024, 1, 1))
                 .googleAccount(false)
                 .build();
     }

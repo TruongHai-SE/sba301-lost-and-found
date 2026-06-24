@@ -15,6 +15,7 @@ import com.sba301.lostandfound.service.AuthService;
 import com.sba301.lostandfound.service.ImageAnalysisService;
 import com.sba301.lostandfound.service.ImageStorageService;
 import com.sba301.lostandfound.service.PostService;
+import com.sba301.lostandfound.service.SearchService;
 import com.sba301.lostandfound.service.SystemHealthService;
 import com.sba301.lostandfound.service.UserService;
 import org.junit.jupiter.api.Test;
@@ -52,6 +53,9 @@ public class AuthControllerIntegrationTest {
 
     @MockitoBean
     private SystemHealthService systemHealthService;
+
+    @MockitoBean
+    private SearchService searchService;
 
     @MockitoBean
     private JwtTokenProvider jwtTokenProvider;

@@ -1,0 +1,68 @@
+services:
+  - type: web
+    name: sba301-lost-and-found-backend
+    runtime: docker
+    dockerContext: backend
+    dockerfilePath: backend/Dockerfile
+    plan: free # or standard, developer can change this
+    envVars:
+      - key: PORT
+        value: 8080
+      - key: POSTGRES_HOST
+        sync: false
+      - key: POSTGRES_PORT
+        value: 5432
+      - key: POSTGRES_DB
+        sync: false
+      - key: POSTGRES_USER
+        sync: false
+      - key: POSTGRES_PASSWORD
+        sync: false
+      - key: SPRING_DATASOURCE_URL
+        sync: false
+      - key: SPRING_DATASOURCE_USERNAME
+        sync: false
+      - key: SPRING_DATASOURCE_PASSWORD
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: CLIP_SERVICE_URL
+        value: https://hariii36-sba301-clip-service.hf.space
+      - key: CLIP_API_TOKEN
+        sync: false
+      - key: CLIP_SCORE_MIN
+        value: "21.0"
+      - key: CLIP_SCORE_MAX
+        value: "29.0"
+      - key: CLIP_MATCH_THRESHOLD
+        value: "0.5"
+      - key: OLLAMA_ENABLED
+        value: "true"
+      - key: OLLAMA_BASE_URL
+        value: https://ollama.matvatim.dpdns.org
+      - key: OLLAMA_VISION_MODEL
+        value: qwen2.5vl:3b
+      - key: OLLAMA_TIMEOUT_SECONDS
+        value: "60"
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_ACCESS_EXPIRATION
+        value: "900000"
+      - key: JWT_REFRESH_EXPIRATION
+        value: "604800000"
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: MAIL_HOST
+        value: smtp.gmail.com
+      - key: MAIL_PORT
+        value: "587"
+      - key: MAIL_USERNAME
+        sync: false
+      - key: MAIL_PASSWORD
+        sync: false
+      - key: CORS_ORIGINS
+        value: "*"

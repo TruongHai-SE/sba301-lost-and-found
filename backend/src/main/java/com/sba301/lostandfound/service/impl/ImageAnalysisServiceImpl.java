@@ -188,7 +188,7 @@ public class ImageAnalysisServiceImpl implements ImageAnalysisService {
         if (result == null || result.response() == null || result.response().isBlank()) {
             return Optional.empty();
         }
-
+        log.info("RAW Ollama Questions Response: {}", result.response());
         return parseQuestionsResponse(result.response());
     }
 

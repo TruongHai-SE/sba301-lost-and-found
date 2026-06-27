@@ -44,25 +44,42 @@ public class OllamaClient {
      * @param prompt   system + user prompt hướng dẫn model trả lời
      * @return response text hoặc null nếu lỗi
      */
-    public VisionDescription describeImage(String imageUrl, String prompt) {
+    public VisionDescription describeImage(String imageInput, String prompt) {
         if (!properties.enabled()) {
             log.debug("Ollama is disabled by config, skip describeImage");
             return null;
         }
 
-        String base64Image = downloadAndEncodeBase64(imageUrl);
-        if (base64Image == null) {
-            log.warn("Could not convert image to base64, skipping Ollama analysis");
+        String base64Image;
+        if (imageInput.startsWith("http://") || imageInput.startsWith("https://")) {
+            base64Image = downloadAndEncodeBase64(imageInput);
+        } else {
+            base64Image = imageInput;
+        }
+
+        if (base64Image == null || base64Image.isBlank()) {
+            log.warn("Could not obtain base64 image, skipping Ollama analysis");
             return null;
         }
 
         // Payload theo Ollama API: https://github.com/ollama/ollama/blob/main/docs/api.md
-        Map<String, Object> request = Map.of(
-            "model", properties.visionModel(),
-            "prompt", prompt,
-            "images", List.of(base64Image),
-            "stream", false
-        );
+        Map<String, Object> request;
+        if (prompt != null && (prompt.contains("JSON") || prompt.contains("json"))) {
+            request = Map.of(
+                "model", properties.visionModel(),
+                "prompt", prompt,
+                "images", List.of(base64Image),
+                "stream", false,
+                "format", "json"
+            );
+        } else {
+            request = Map.of(
+                "model", properties.visionModel(),
+                "prompt", prompt,
+                "images", List.of(base64Image),
+                "stream", false
+            );
+        }
 
         try {
             VisionDescription response = restClient.post()

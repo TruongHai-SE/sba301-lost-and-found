@@ -2,6 +2,8 @@ package com.sba301.lostandfound.service.impl;
 
 import com.sba301.lostandfound.client.ClipClient;
 import com.sba301.lostandfound.dto.ClipEmbedResponse;
+import java.util.Base64;
+import java.io.IOException;
 import com.sba301.lostandfound.dto.ClipMatch;
 import com.sba301.lostandfound.dto.CreateFoundPostRequest;
 import com.sba301.lostandfound.dto.CreateLostPostRequest;
@@ -359,14 +361,69 @@ public class PostServiceImpl implements PostService {
             }
         }
     }
+    private String resizeAndEncodeBase64(MultipartFile image) {
+        try {
+            java.awt.image.BufferedImage originalImage = javax.imageio.ImageIO.read(image.getInputStream());
+            if (originalImage == null) {
+                return null;
+            }
+
+            int originalWidth = originalImage.getWidth();
+            int originalHeight = originalImage.getHeight();
+
+            int maxDim = 512;
+            int newWidth = originalWidth;
+            int newHeight = originalHeight;
+
+            if (originalWidth > maxDim || originalHeight > maxDim) {
+                if (originalWidth > originalHeight) {
+                    newWidth = maxDim;
+                    newHeight = (originalHeight * maxDim) / originalWidth;
+                } else {
+                    newHeight = maxDim;
+                    newWidth = (originalWidth * maxDim) / originalHeight;
+                }
+            }
+
+            java.awt.image.BufferedImage resizedImage = new java.awt.image.BufferedImage(
+                newWidth, newHeight, java.awt.image.BufferedImage.TYPE_INT_RGB
+            );
+            java.awt.Graphics2D g = resizedImage.createGraphics();
+            g.drawImage(originalImage, 0, 0, newWidth, newHeight, null);
+            g.dispose();
+
+            java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+            javax.imageio.ImageIO.write(resizedImage, "jpg", baos);
+            byte[] imageBytes = baos.toByteArray();
+
+            return Base64.getEncoder().encodeToString(imageBytes);
+        } catch (Exception exception) {
+            log.warn("Failed to resize image, falling back to raw image: {}", exception.getMessage());
+            try {
+                return Base64.getEncoder().encodeToString(image.getBytes());
+            } catch (IOException e) {
+                return null;
+            }
+        }
+    }
 
     @Override
     public QuestionSuggestionResponse suggestQuestions(MultipartFile image, String description) {
         if (image == null || image.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Image is required to generate questions");
         }
+        
+        // 1. Upload to Cloudinary to get final imageUrl
         String imageUrl = imageStorageService.upload(image);
-        Optional<OllamaQuestionsResponse> suggestionsOpt = imageAnalysisService.generateQuestions(imageUrl, description);
+        
+        // 2. Convert and resize image directly to base64
+        String base64Image = resizeAndEncodeBase64(image);
+        if (base64Image == null) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to read image bytes");
+        }
+        
+        // 3. Generate questions using base64 directly
+        Optional<OllamaQuestionsResponse> suggestionsOpt = imageAnalysisService.generateQuestions(base64Image, description);
         
         List<OllamaQuestionsResponse.OllamaQuestion> questions = suggestionsOpt
                 .map(OllamaQuestionsResponse::questions)
@@ -380,8 +437,18 @@ public class PostServiceImpl implements PostService {
         if (image == null || image.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Image is required to generate description");
         }
+        
+        // 1. Upload to Cloudinary to get final imageUrl
         String imageUrl = imageStorageService.upload(image);
-        Optional<OllamaTags> tagsOpt = imageAnalysisService.analyzeImage(imageUrl, description);
+        
+        // 2. Convert and resize image directly to base64
+        String base64Image = resizeAndEncodeBase64(image);
+        if (base64Image == null) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to read image bytes");
+        }
+        
+        // 3. Analyze image using base64 directly
+        Optional<OllamaTags> tagsOpt = imageAnalysisService.analyzeImage(base64Image, description);
         
         if (tagsOpt.isEmpty()) {
             throw new ResponseStatusException(

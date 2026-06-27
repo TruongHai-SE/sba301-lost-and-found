@@ -47,7 +47,7 @@ services:
       - key: OLLAMA_VISION_MODEL
         value: qwen2.5vl:3b
       - key: OLLAMA_TIMEOUT_SECONDS
-        value: "60"
+        value: "180"
       - key: JWT_SECRET
         sync: false
       - key: JWT_ACCESS_EXPIRATION

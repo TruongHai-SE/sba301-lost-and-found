@@ -27,6 +27,7 @@ import com.sba301.lostandfound.repository.UserRepository;
 import com.sba301.lostandfound.repository.VerificationRepository;
 import com.sba301.lostandfound.service.ImageStorageService;
 import com.sba301.lostandfound.service.PostService;
+import com.sba301.lostandfound.service.PostAiEnrichmentService;
 import com.sba301.lostandfound.service.ImageAnalysisService;
 import com.sba301.lostandfound.dto.QuestionSuggestionResponse;
 import com.sba301.lostandfound.dto.GenerateDescriptionResponse;
@@ -67,6 +68,7 @@ public class PostServiceImpl implements PostService {
     private final ClipClient clipClient;
     private final VerificationRepository verificationRepository;
     private final VerificationAnswerRepository verificationAnswerRepository;
+    private final PostAiEnrichmentService postAiEnrichmentService;
 
     public PostServiceImpl(
             UserRepository userRepository,
@@ -77,7 +79,8 @@ public class PostServiceImpl implements PostService {
             ImageAnalysisService imageAnalysisService,
             ClipClient clipClient,
             VerificationRepository verificationRepository,
-            VerificationAnswerRepository verificationAnswerRepository) {
+            VerificationAnswerRepository verificationAnswerRepository,
+            PostAiEnrichmentService postAiEnrichmentService) {
         this.userRepository = userRepository;
         this.locationRepository = locationRepository;
         this.imageRepository = imageRepository;
@@ -87,6 +90,7 @@ public class PostServiceImpl implements PostService {
         this.clipClient = clipClient;
         this.verificationRepository = verificationRepository;
         this.verificationAnswerRepository = verificationAnswerRepository;
+        this.postAiEnrichmentService = postAiEnrichmentService;
     }
 
     @Override
@@ -109,6 +113,8 @@ public class PostServiceImpl implements PostService {
                 .status(PostStatus.ACTIVE)
                 .hidePostType(hidePostType)
                 .build());
+
+        triggerAiEnrichment(post, image, request.getDescription(), null);
 
         List<ClipMatch> matches = runClipMatching(post, image, request.getDescription());
 
@@ -155,7 +161,9 @@ public class PostServiceImpl implements PostService {
                 .build());
 
         // 4. Lưu dữ liệu bộ câu hỏi bảo mật động và đáp án gốc
-        if (request.getVerifications() != null) {
+        if (request.getCustomQuestionsJson() != null && !request.getCustomQuestionsJson().isBlank()) {
+            postAiEnrichmentService.saveCustomQuestions(post.getId(), request.getCustomQuestionsJson());
+        } else if (request.getVerifications() != null) {
             for (VerificationQuestionRequest vReq : request.getVerifications()) {
                 Verification verification = verificationRepository.save(Verification.builder()
                         .post(post)
@@ -169,6 +177,8 @@ public class PostServiceImpl implements PostService {
                         .build());
             }
         }
+
+        triggerAiEnrichment(post, image, request.getDescription(), request.getCustomQuestionsJson());
 
         // 5. Đồng bộ Vector hóa thông qua CLIP Service và tìm kiếm chéo các bài LOST
         // tương đồng
@@ -320,6 +330,34 @@ public class PostServiceImpl implements PostService {
                 .url(url)
                 .createdAt(LocalDateTime.now())
                 .build());
+    }
+
+    private void triggerAiEnrichment(Post post, Image image, String userDescription, String customQuestionsJson) {
+        if (image == null) {
+            return;
+        }
+
+        // Tác vụ 1: AI mô tả chi tiết hình ảnh & gán tags tìm kiếm
+        try {
+            postAiEnrichmentService.enrichDescriptionAsync(
+                post.getId(), image.getUrl(), userDescription
+            );
+        } catch (RuntimeException exception) {
+            log.warn("Failed to schedule AI description enrichment for post {}: {}",
+                post.getId(), exception.getMessage());
+        }
+
+        // Tác vụ 2: AI tự sinh câu hỏi + đáp án xác minh (chỉ áp dụng cho FOUND nếu không có custom questions)
+        if (post.getType() == PostType.FOUND && (customQuestionsJson == null || customQuestionsJson.isBlank())) {
+            try {
+                postAiEnrichmentService.generateVerificationQuestionsAsync(
+                    post.getId(), image.getUrl(), userDescription
+                );
+            } catch (RuntimeException exception) {
+                log.warn("Failed to schedule AI question generation for post {}: {}",
+                    post.getId(), exception.getMessage());
+            }
+        }
     }
 
     @Override

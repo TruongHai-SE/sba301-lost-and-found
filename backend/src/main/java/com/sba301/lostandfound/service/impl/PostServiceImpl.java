@@ -69,6 +69,7 @@ public class PostServiceImpl implements PostService {
     private final VerificationRepository verificationRepository;
     private final VerificationAnswerRepository verificationAnswerRepository;
     private final PostAiEnrichmentService postAiEnrichmentService;
+    private final ImageBlurringService imageBlurringService;
 
     public PostServiceImpl(
             UserRepository userRepository,
@@ -80,7 +81,8 @@ public class PostServiceImpl implements PostService {
             ClipClient clipClient,
             VerificationRepository verificationRepository,
             VerificationAnswerRepository verificationAnswerRepository,
-            PostAiEnrichmentService postAiEnrichmentService) {
+            PostAiEnrichmentService postAiEnrichmentService,
+            ImageBlurringService imageBlurringService) {
         this.userRepository = userRepository;
         this.locationRepository = locationRepository;
         this.imageRepository = imageRepository;
@@ -91,6 +93,7 @@ public class PostServiceImpl implements PostService {
         this.verificationRepository = verificationRepository;
         this.verificationAnswerRepository = verificationAnswerRepository;
         this.postAiEnrichmentService = postAiEnrichmentService;
+        this.imageBlurringService = imageBlurringService;
     }
 
     @Override
@@ -252,11 +255,16 @@ public class PostServiceImpl implements PostService {
     }
 
     private Image uploadAndSaveImage(CreateLostPostRequest request) {
-        String url = (request.getImage() != null && !request.getImage().isEmpty()) 
+        String originalUrl = (request.getImage() != null && !request.getImage().isEmpty()) 
                 ? imageStorageService.upload(request.getImage()) 
                 : request.getImageUrl();
+        String blurredUrl = imageBlurringService.blur(originalUrl);
+        if (blurredUrl == null) {
+            blurredUrl = originalUrl;
+        }
         return imageRepository.save(Image.builder()
-                .url(url)
+                .url(blurredUrl)
+                .privateUrl(originalUrl)
                 .createdAt(LocalDateTime.now())
                 .build());
     }
@@ -269,7 +277,13 @@ public class PostServiceImpl implements PostService {
         try {
             ClipEmbedResponse response;
             if (image != null) {
-                response = clipClient.embedImage(post.getId(), image.getUrl(), image.getId(), LOST);
+                response = clipClient.embedImage(post.getId(), image.getPrivateUrl(), image.getId(), LOST);
+                try {
+                    String text = buildText(post.getTitle(), description);
+                    clipClient.embedText(post.getId(), text, LOST);
+                } catch (Exception e) {
+                    log.warn("Failed to index text embedding for post with image {}: {}", post.getId(), e.getMessage());
+                }
             } else {
                 String text = buildText(post.getTitle(), description);
                 response = clipClient.embedText(post.getId(), text, LOST);
@@ -295,8 +309,13 @@ public class PostServiceImpl implements PostService {
         try {
             ClipEmbedResponse response;
             if (image != null) {
-                // Truyền tham số loại bài đăng cấu hình là "FOUND"
-                response = clipClient.embedImage(post.getId(), image.getUrl(), image.getId(), "FOUND");
+                response = clipClient.embedImage(post.getId(), image.getPrivateUrl(), image.getId(), "FOUND");
+                try {
+                    String text = post.getTitle() + (description != null ? ". " + description : "");
+                    clipClient.embedText(post.getId(), text, "FOUND");
+                } catch (Exception e) {
+                    log.warn("Failed to index text embedding for found post with image {}: {}", post.getId(), e.getMessage());
+                }
             } else {
                 String text = post.getTitle() + (description != null ? ". " + description : "");
                 response = clipClient.embedText(post.getId(), text, "FOUND");
@@ -323,11 +342,16 @@ public class PostServiceImpl implements PostService {
     }
 
     private Image uploadAndSaveImageForFound(CreateFoundPostRequest request) {
-        String url = (request.getImage() != null && !request.getImage().isEmpty()) 
+        String originalUrl = (request.getImage() != null && !request.getImage().isEmpty()) 
                 ? imageStorageService.upload(request.getImage()) 
                 : request.getImageUrl();
+        String blurredUrl = imageBlurringService.blur(originalUrl);
+        if (blurredUrl == null) {
+            blurredUrl = originalUrl;
+        }
         return imageRepository.save(Image.builder()
-                .url(url)
+                .url(blurredUrl)
+                .privateUrl(originalUrl)
                 .createdAt(LocalDateTime.now())
                 .build());
     }
@@ -340,7 +364,7 @@ public class PostServiceImpl implements PostService {
         // Tác vụ 1: AI mô tả chi tiết hình ảnh & gán tags tìm kiếm
         try {
             postAiEnrichmentService.enrichDescriptionAsync(
-                post.getId(), image.getUrl(), userDescription
+                post.getId(), image.getPrivateUrl(), userDescription
             );
         } catch (RuntimeException exception) {
             log.warn("Failed to schedule AI description enrichment for post {}: {}",
@@ -351,7 +375,7 @@ public class PostServiceImpl implements PostService {
         if (post.getType() == PostType.FOUND && (customQuestionsJson == null || customQuestionsJson.isBlank())) {
             try {
                 postAiEnrichmentService.generateVerificationQuestionsAsync(
-                    post.getId(), image.getUrl(), userDescription
+                    post.getId(), image.getPrivateUrl(), userDescription
                 );
             } catch (RuntimeException exception) {
                 log.warn("Failed to schedule AI question generation for post {}: {}",

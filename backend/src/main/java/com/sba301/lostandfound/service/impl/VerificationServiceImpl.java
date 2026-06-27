@@ -209,7 +209,12 @@ public class VerificationServiceImpl implements VerificationService {
      * CHỈ gọi khi claim đã được phê duyệt (score >= threshold).
      */
     private FullPostDetails buildFullDetails(Post post, Double verificationScore) {
-        String imageUrl = post.getImage() == null ? null : post.getImage().getUrl();
+        String imageUrl = null;
+        if (post.getImage() != null) {
+            imageUrl = (post.getImage().getPrivateUrl() != null && !post.getImage().getPrivateUrl().isBlank())
+                ? post.getImage().getPrivateUrl()
+                : post.getImage().getUrl();
+        }
         FullPostDetails.OwnerInfo owner = null;
         if (post.getUser() != null) {
             owner = new FullPostDetails.OwnerInfo(

@@ -693,8 +693,8 @@ async function handleSearch(event) {
                 },
                 body: JSON.stringify({
                     text: textQuery,
-                    topK: parseInt(topK),
-                    targetType: targetType
+                    top_k: parseInt(topK),
+                    target_type: targetType
                 })
             });
         } else {
@@ -751,7 +751,7 @@ function renderSearchResults(results, container) {
 
         const isLost = post.type === 'LOST';
         const formattedDate = post.event_time ? new Date(post.event_time).toLocaleString('vi-VN') : 'Không rõ thời gian';
-        const scorePercent = post.match_score ? Math.round(post.match_score * 100) : null;
+        const scorePercent = (post.match_score !== null && post.match_score !== undefined) ? Math.round(post.match_score * 100) : null;
         
         let imgHtml = '';
         if (post.blurred_image_url) {
@@ -763,7 +763,7 @@ function renderSearchResults(results, container) {
         card.innerHTML = `
             <div class="result-img-wrapper">
                 ${imgHtml}
-                ${scorePercent ? `<span class="score-tag">Độ khớp: ${scorePercent}%</span>` : ''}
+                ${scorePercent !== null ? `<span class="score-tag">Độ khớp: ${scorePercent}%</span>` : ''}
                 <span class="type-tag ${isLost ? 'lost' : 'found'}">${isLost ? 'Mất đồ' : 'Nhặt được'}</span>
             </div>
             <div class="result-content">

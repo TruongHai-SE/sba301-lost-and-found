@@ -68,6 +68,7 @@ class VectorStore:
                 cursor.execute(
                     """
                     SELECT ce.id, ce.post_id, ce.image_id, ce.source_type, p.type as post_type,
+                           p.title, p.description,
                            1 - (ce.embedding <=> %s::vector) AS score
                     FROM clip_embeddings ce
                     JOIN posts p ON p.id = ce.post_id

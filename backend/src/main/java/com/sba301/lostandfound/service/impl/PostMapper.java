@@ -34,10 +34,19 @@ public class PostMapper {
      * @param score    match score từ CLIP (optional, có thể null)
      */
     public BlurredPostSummary toBlurredSummary(Post post, Double score) {
-        String originalUrl = post.getImage() == null ? null : post.getImage().getUrl();
-        String blurredUrl = imageBlurringService.blur(originalUrl);
-        if (blurredUrl == null) {
-            blurredUrl = originalUrl;
+        String blurredUrl = null;
+        if (post.getImage() != null) {
+            if (post.getImage().getPrivateUrl() != null && !post.getImage().getPrivateUrl().isBlank()) {
+                // New logic: url stores the blurred image
+                blurredUrl = post.getImage().getUrl();
+            } else {
+                // Backward compatibility: url stores the clear image, privateUrl is null
+                String originalUrl = post.getImage().getUrl();
+                blurredUrl = imageBlurringService.blur(originalUrl);
+                if (blurredUrl == null) {
+                    blurredUrl = originalUrl;
+                }
+            }
         }
         List<VerificationQuestion> questions = verificationService.getQuestionDtos(post.getId());
         return new BlurredPostSummary(
@@ -45,7 +54,7 @@ public class PostMapper {
             post.getTitle(),
             post.getDescription(),
             blurredUrl,
-            originalUrl,
+            null, // Hiding original image URL from public search/summary to prevent leak
             post.getType() == null ? null : post.getType().name(),
             post.getEventTime(),
             post.getCreatedAt(),
@@ -82,7 +91,12 @@ public class PostMapper {
      * CHỈ dùng khi user đã vượt qua claim flow.
      */
     public FullPostDetails toFullDetails(Post post, Double verificationScore) {
-        String imageUrl = post.getImage() == null ? null : post.getImage().getUrl();
+        String imageUrl = null;
+        if (post.getImage() != null) {
+            imageUrl = (post.getImage().getPrivateUrl() != null && !post.getImage().getPrivateUrl().isBlank())
+                ? post.getImage().getPrivateUrl()
+                : post.getImage().getUrl();
+        }
         FullPostDetails.OwnerInfo owner = null;
         if (post.getUser() != null) {
             owner = new FullPostDetails.OwnerInfo(

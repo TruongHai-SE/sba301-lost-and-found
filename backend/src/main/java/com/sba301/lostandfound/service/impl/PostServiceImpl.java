@@ -361,6 +361,51 @@ public class PostServiceImpl implements PostService {
             }
         }
     }
+    private String resizeAndEncodeBase64(MultipartFile image) {
+        try {
+            java.awt.image.BufferedImage originalImage = javax.imageio.ImageIO.read(image.getInputStream());
+            if (originalImage == null) {
+                return null;
+            }
+
+            int originalWidth = originalImage.getWidth();
+            int originalHeight = originalImage.getHeight();
+
+            int maxDim = 512;
+            int newWidth = originalWidth;
+            int newHeight = originalHeight;
+
+            if (originalWidth > maxDim || originalHeight > maxDim) {
+                if (originalWidth > originalHeight) {
+                    newWidth = maxDim;
+                    newHeight = (originalHeight * maxDim) / originalWidth;
+                } else {
+                    newHeight = maxDim;
+                    newWidth = (originalWidth * maxDim) / originalHeight;
+                }
+            }
+
+            java.awt.image.BufferedImage resizedImage = new java.awt.image.BufferedImage(
+                newWidth, newHeight, java.awt.image.BufferedImage.TYPE_INT_RGB
+            );
+            java.awt.Graphics2D g = resizedImage.createGraphics();
+            g.drawImage(originalImage, 0, 0, newWidth, newHeight, null);
+            g.dispose();
+
+            java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+            javax.imageio.ImageIO.write(resizedImage, "jpg", baos);
+            byte[] imageBytes = baos.toByteArray();
+
+            return Base64.getEncoder().encodeToString(imageBytes);
+        } catch (Exception exception) {
+            log.warn("Failed to resize image, falling back to raw image: {}", exception.getMessage());
+            try {
+                return Base64.getEncoder().encodeToString(image.getBytes());
+            } catch (IOException e) {
+                return null;
+            }
+        }
+    }
 
     @Override
     public QuestionSuggestionResponse suggestQuestions(MultipartFile image, String description) {
@@ -371,12 +416,10 @@ public class PostServiceImpl implements PostService {
         // 1. Upload to Cloudinary to get final imageUrl
         String imageUrl = imageStorageService.upload(image);
         
-        // 2. Convert MultipartFile directly to base64
-        String base64Image;
-        try {
-            base64Image = Base64.getEncoder().encodeToString(image.getBytes());
-        } catch (IOException exception) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to read image bytes", exception);
+        // 2. Convert and resize image directly to base64
+        String base64Image = resizeAndEncodeBase64(image);
+        if (base64Image == null) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to read image bytes");
         }
         
         // 3. Generate questions using base64 directly
@@ -398,12 +441,10 @@ public class PostServiceImpl implements PostService {
         // 1. Upload to Cloudinary to get final imageUrl
         String imageUrl = imageStorageService.upload(image);
         
-        // 2. Convert MultipartFile directly to base64
-        String base64Image;
-        try {
-            base64Image = Base64.getEncoder().encodeToString(image.getBytes());
-        } catch (IOException exception) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to read image bytes", exception);
+        // 2. Convert and resize image directly to base64
+        String base64Image = resizeAndEncodeBase64(image);
+        if (base64Image == null) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to read image bytes");
         }
         
         // 3. Analyze image using base64 directly

@@ -63,12 +63,23 @@ public class OllamaClient {
         }
 
         // Payload theo Ollama API: https://github.com/ollama/ollama/blob/main/docs/api.md
-        Map<String, Object> request = Map.of(
-            "model", properties.visionModel(),
-            "prompt", prompt,
-            "images", List.of(base64Image),
-            "stream", false
-        );
+        Map<String, Object> request;
+        if (prompt != null && (prompt.contains("JSON") || prompt.contains("json"))) {
+            request = Map.of(
+                "model", properties.visionModel(),
+                "prompt", prompt,
+                "images", List.of(base64Image),
+                "stream", false,
+                "format", "json"
+            );
+        } else {
+            request = Map.of(
+                "model", properties.visionModel(),
+                "prompt", prompt,
+                "images", List.of(base64Image),
+                "stream", false
+            );
+        }
 
         try {
             VisionDescription response = restClient.post()

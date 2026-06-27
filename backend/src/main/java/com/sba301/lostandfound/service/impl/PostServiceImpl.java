@@ -2,6 +2,8 @@ package com.sba301.lostandfound.service.impl;
 
 import com.sba301.lostandfound.client.ClipClient;
 import com.sba301.lostandfound.dto.ClipEmbedResponse;
+import java.util.Base64;
+import java.io.IOException;
 import com.sba301.lostandfound.dto.ClipMatch;
 import com.sba301.lostandfound.dto.CreateFoundPostRequest;
 import com.sba301.lostandfound.dto.CreateLostPostRequest;
@@ -365,8 +367,20 @@ public class PostServiceImpl implements PostService {
         if (image == null || image.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Image is required to generate questions");
         }
+        
+        // 1. Upload to Cloudinary to get final imageUrl
         String imageUrl = imageStorageService.upload(image);
-        Optional<OllamaQuestionsResponse> suggestionsOpt = imageAnalysisService.generateQuestions(imageUrl, description);
+        
+        // 2. Convert MultipartFile directly to base64
+        String base64Image;
+        try {
+            base64Image = Base64.getEncoder().encodeToString(image.getBytes());
+        } catch (IOException exception) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to read image bytes", exception);
+        }
+        
+        // 3. Generate questions using base64 directly
+        Optional<OllamaQuestionsResponse> suggestionsOpt = imageAnalysisService.generateQuestions(base64Image, description);
         
         List<OllamaQuestionsResponse.OllamaQuestion> questions = suggestionsOpt
                 .map(OllamaQuestionsResponse::questions)
@@ -380,8 +394,20 @@ public class PostServiceImpl implements PostService {
         if (image == null || image.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Image is required to generate description");
         }
+        
+        // 1. Upload to Cloudinary to get final imageUrl
         String imageUrl = imageStorageService.upload(image);
-        Optional<OllamaTags> tagsOpt = imageAnalysisService.analyzeImage(imageUrl, description);
+        
+        // 2. Convert MultipartFile directly to base64
+        String base64Image;
+        try {
+            base64Image = Base64.getEncoder().encodeToString(image.getBytes());
+        } catch (IOException exception) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to read image bytes", exception);
+        }
+        
+        // 3. Analyze image using base64 directly
+        Optional<OllamaTags> tagsOpt = imageAnalysisService.analyzeImage(base64Image, description);
         
         if (tagsOpt.isEmpty()) {
             throw new ResponseStatusException(

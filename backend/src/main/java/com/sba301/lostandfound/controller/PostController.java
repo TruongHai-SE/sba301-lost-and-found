@@ -4,6 +4,7 @@ import com.sba301.lostandfound.dto.ApiResponse;
 import com.sba301.lostandfound.dto.CreateFoundPostRequest;
 import com.sba301.lostandfound.dto.CreateLostPostRequest;
 import com.sba301.lostandfound.dto.CreatePostResponse;
+import com.sba301.lostandfound.dto.FullPostDetails;
 import com.sba301.lostandfound.dto.PageResponse;
 import com.sba301.lostandfound.dto.PostListResponse;
 import com.sba301.lostandfound.dto.QuestionSuggestionResponse;
@@ -12,6 +13,7 @@ import com.sba301.lostandfound.dto.SearchResponse;
 import com.sba301.lostandfound.dto.SearchByTextRequest;
 import com.sba301.lostandfound.entity.enums.PostStatus;
 import com.sba301.lostandfound.entity.enums.PostType;
+import com.sba301.lostandfound.security.CustomUserDetails;
 import com.sba301.lostandfound.service.PostService;
 import com.sba301.lostandfound.service.SearchService;
 import jakarta.validation.Valid;
@@ -19,6 +21,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -110,6 +113,33 @@ public class PostController {
                 .body(ApiResponse.success(HttpStatus.CREATED.value(), response, "Create found post successfully"));
     }
 
+    @GetMapping("/my-posts")
+    public ResponseEntity<ApiResponse<PageResponse<PostListResponse>>> getMyPosts(
+            @AuthenticationPrincipal CustomUserDetails currentUser,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "DESC") String sortDir,
+            @RequestParam(required = false) PostType type,
+            @RequestParam(required = false) PostStatus status) {
+        Long userId = currentUser.getUser().getId();
+        PageResponse<PostListResponse> response = postService.getUserPosts(page, size, sortBy, sortDir, type, status, userId);
+        return ResponseEntity.ok(ApiResponse.success(response, "Get my posts successfully"));
+    }
+
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<ApiResponse<PageResponse<PostListResponse>>> getUserPosts(
+            @PathVariable Long userId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "DESC") String sortDir,
+            @RequestParam(required = false) PostType type,
+            @RequestParam(required = false) PostStatus status) {
+        PageResponse<PostListResponse> response = postService.getUserPosts(page, size, sortBy, sortDir, type, status, userId);
+        return ResponseEntity.ok(ApiResponse.success(response, "Get user posts successfully"));
+    }
+
     @GetMapping("/all")
     public ResponseEntity<ApiResponse<PageResponse<PostListResponse>>> getAllPosts(
             @RequestParam(defaultValue = "0") int page,
@@ -120,6 +150,13 @@ public class PostController {
             @RequestParam(required = false) PostStatus status) {
         PageResponse<PostListResponse> response = postService.getAllPosts(page, size, sortBy, sortDir, type, status);
         return ResponseEntity.ok(ApiResponse.success(response, "Get all posts successfully"));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<ApiResponse<FullPostDetails>> getPostById(
+            @PathVariable Long id) {
+        FullPostDetails response = postService.getPostById(id);
+        return ResponseEntity.ok(ApiResponse.success(response, "Get post details successfully"));
     }
 
     @PatchMapping("/{id}/status")

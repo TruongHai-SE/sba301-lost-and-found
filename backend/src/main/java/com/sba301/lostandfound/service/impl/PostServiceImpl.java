@@ -31,8 +31,10 @@ import com.sba301.lostandfound.service.ImageStorageService;
 import com.sba301.lostandfound.service.PostService;
 import com.sba301.lostandfound.service.PostAiEnrichmentService;
 import com.sba301.lostandfound.service.ImageAnalysisService;
+import com.sba301.lostandfound.service.impl.ImageBlurringService;
 import com.sba301.lostandfound.dto.QuestionSuggestionResponse;
 import com.sba301.lostandfound.dto.GenerateDescriptionResponse;
+import com.sba301.lostandfound.dto.FullPostDetails;
 import com.sba301.lostandfound.dto.OllamaQuestionsResponse;
 import com.sba301.lostandfound.dto.OllamaTags;
 import org.springframework.web.multipart.MultipartFile;
@@ -72,6 +74,7 @@ public class PostServiceImpl implements PostService {
     private final VerificationAnswerRepository verificationAnswerRepository;
     private final PostAiEnrichmentService postAiEnrichmentService;
     private final ImageBlurringService imageBlurringService;
+    private final PostMapper postMapper;
 
     public PostServiceImpl(
             UserRepository userRepository,
@@ -84,7 +87,8 @@ public class PostServiceImpl implements PostService {
             VerificationRepository verificationRepository,
             VerificationAnswerRepository verificationAnswerRepository,
             PostAiEnrichmentService postAiEnrichmentService,
-            ImageBlurringService imageBlurringService) {
+            ImageBlurringService imageBlurringService,
+            PostMapper postMapper) {
         this.userRepository = userRepository;
         this.locationRepository = locationRepository;
         this.imageRepository = imageRepository;
@@ -96,6 +100,7 @@ public class PostServiceImpl implements PostService {
         this.verificationAnswerRepository = verificationAnswerRepository;
         this.postAiEnrichmentService = postAiEnrichmentService;
         this.imageBlurringService = imageBlurringService;
+        this.postMapper = postMapper;
     }
 
     @Override
@@ -190,6 +195,38 @@ public class PostServiceImpl implements PostService {
         List<ClipMatch> matches = runClipMatchingForFound(post, image, request.getDescription());
 
         return CreatePostResponse.from(post, matches);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<PostListResponse> getUserPosts(int page, int size, String sortBy, String direction, PostType type, PostStatus status, Long userId) {
+        Sort sort = Sort.by(Sort.Direction.fromString(direction), sortBy);
+        Pageable pageable = PageRequest.of(page, size, sort);
+
+        Specification<Post> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.equal(root.get("user").get("id"), userId));
+            if (type != null) {
+                predicates.add(cb.equal(root.get("type"), type));
+            }
+            if (status != null) {
+                predicates.add(cb.equal(root.get("status"), status));
+            }
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        Page<Post> postPage = postRepository.findAll(spec, pageable);
+        Page<PostListResponse> dtoPage = postPage.map(PostListResponse::from);
+
+        return PageResponse.from(dtoPage);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public FullPostDetails getPostById(Long id) {
+        Post post = postRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Post not found"));
+        return postMapper.toFullDetails(post, null);
     }
 
     @Override

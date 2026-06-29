@@ -279,7 +279,7 @@ public class PostServiceImpl implements PostService {
             if (response == null || response.matches() == null) {
                 return List.of();
             }
-            return response.matches();
+            return enrichClipMatches(response.matches());
         } catch (RuntimeException exception) {
             log.warn("CLIP matching failed for post {}: {}", post.getId(), exception.getMessage());
             return List.of();
@@ -293,11 +293,27 @@ public class PostServiceImpl implements PostService {
         return title + ". " + description;
     }
 
+    private List<ClipMatch> enrichClipMatches(List<ClipMatch> matches) {
+        if (matches == null || matches.isEmpty()) {
+            return List.of();
+        }
+        return matches.stream()
+                .map(match -> {
+                    String url = null;
+                    if (match.imageId() != null) {
+                        url = imageRepository.findById(match.imageId())
+                                .map(Image::getUrl)
+                                .orElse(null);
+                    }
+                    return ClipMatch.withUrl(match, url);
+                })
+                .toList();
+    }
+
     private List<ClipMatch> runClipMatchingForFound(Post post, Image image, String description) {
         try {
             ClipEmbedResponse response;
             if (image != null) {
-                // Truyền tham số loại bài đăng cấu hình là "FOUND"
                 response = clipClient.embedImage(post.getId(), image.getUrl(), image.getId(), "FOUND");
             } else {
                 String text = post.getTitle() + (description != null ? ". " + description : "");
@@ -306,7 +322,7 @@ public class PostServiceImpl implements PostService {
             if (response == null || response.matches() == null) {
                 return List.of();
             }
-            return response.matches();
+            return enrichClipMatches(response.matches());
         } catch (RuntimeException exception) {
             log.warn("CLIP matching failed for found post {}: {}", post.getId(), exception.getMessage());
             return List.of();

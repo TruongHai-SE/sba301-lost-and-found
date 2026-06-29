@@ -20,13 +20,26 @@ class OfflineTranslator:
         print("[Translator] Offline translator loaded successfully.")
 
     def translate(self, text: str) -> str:
-        """Translate Vietnamese input to English."""
+        """Translate Vietnamese input to English using GoogleTranslator with local fallback."""
         if not text or not text.strip():
             return text
+        
+        # 1. Try GoogleTranslator (online)
+        try:
+            from deep_translator import GoogleTranslator
+            translated = GoogleTranslator(source='auto', target='en').translate(text)
+            if translated and translated.strip():
+                print(f"[Translator] Google Translate success: '{text}' -> '{translated}'")
+                return translated
+        except Exception as e:
+            print(f"[Translator] Google Translate failed: {e}. Falling back to local model.")
+
+        # 2. Local fallback model
         try:
             res = self.pipeline(text)
             translated = res[0]["translation_text"]
+            print(f"[Translator] Local Helsinki Translate: '{text}' -> '{translated}'")
             return translated
         except Exception as e:
-            print(f"[Translator] Translation error: {e}")
+            print(f"[Translator] Local translation error: {e}")
             return text # Fallback to original text on failure

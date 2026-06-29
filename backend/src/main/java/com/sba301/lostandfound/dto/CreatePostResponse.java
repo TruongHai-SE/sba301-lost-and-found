@@ -43,6 +43,12 @@ public class CreatePostResponse {
     private final List<VerificationQuestion> verificationQuestions;
 
     public static CreatePostResponse from(Post post, List<ClipMatch> matches) {
+        String imageUrl = null;
+        if (post.getImage() != null) {
+            imageUrl = (post.getImage().getPrivateUrl() != null && !post.getImage().getPrivateUrl().isBlank())
+                ? post.getImage().getPrivateUrl()
+                : post.getImage().getUrl();
+        }
         return CreatePostResponse.builder()
             .postId(post.getId())
             .title(post.getTitle())
@@ -52,7 +58,7 @@ public class CreatePostResponse {
             .hidePostType(post.getHidePostType())
             .eventTime(post.getEventTime())
             .createdAt(post.getCreatedAt())
-            .imageUrl(post.getImage() == null ? null : post.getImage().getUrl())
+            .imageUrl(imageUrl)
             .userId(post.getUser() == null ? null : post.getUser().getId())
             .location(LocationInfo.from(post.getLocation()))
             .matches(matches == null ? List.of() : matches)

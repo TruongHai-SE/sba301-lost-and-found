@@ -1,47 +1,68 @@
 package com.sba301.lostandfound.service.impl;
 
 import com.sba301.lostandfound.service.EmailService;
-import jakarta.mail.internet.MimeMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+import java.util.Map;
 
 @Service
 public class EmailServiceImpl implements EmailService {
 
     private static final Logger log = LoggerFactory.getLogger(EmailServiceImpl.class);
 
-    private final JavaMailSender mailSender;
+    @org.springframework.beans.factory.annotation.Value("${brevo.api-key:}")
+    private String brevoApiKey;
 
-    @org.springframework.beans.factory.annotation.Value("${spring.mail.username:}")
-    private String mailUsername;
+    @org.springframework.beans.factory.annotation.Value("${brevo.sender-name:Lost & Found}")
+    private String brevoSenderName;
 
-    public EmailServiceImpl(JavaMailSender mailSender) {
-        this.mailSender = mailSender;
-    }
+    @org.springframework.beans.factory.annotation.Value("${brevo.sender-email:zapter1111@gmail.com}")
+    private String brevoSenderEmail;
+
+    private final RestTemplate restTemplate = new RestTemplate();
 
     @Override
     public void sendOtpEmail(String toEmail, String otpCode, String purpose) {
-        if (!org.springframework.util.StringUtils.hasText(mailUsername)) {
-            log.warn("SMTP username is empty (not configured). Skipping sending OTP email. " +
+        if (!org.springframework.util.StringUtils.hasText(brevoApiKey)) {
+            log.warn("Brevo API key is empty (not configured). Skipping sending OTP email. " +
                     "For local testing, retrieve OTP code directly from the DB log. Code: {}", otpCode);
             return;
         }
 
         try {
-            MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-
-            helper.setFrom(mailUsername, "Lost & Found");
-            helper.setTo(toEmail);
-            helper.setSubject("Lost & Found — Mã xác thực OTP");
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("Accept", MediaType.APPLICATION_JSON_VALUE);
+            headers.set("api-key", brevoApiKey);
 
             String htmlContent = buildOtpEmailHtml(otpCode);
-            helper.setText(htmlContent, true);
-            mailSender.send(message);
-            log.info("OTP email successfully sent to {}", toEmail);
+
+            Map<String, Object> payload = Map.of(
+                "sender", Map.of("name", brevoSenderName, "email", brevoSenderEmail),
+                "to", java.util.List.of(Map.of("email", toEmail)),
+                "subject", "Lost & Found — Mã xác thực OTP",
+                "htmlContent", htmlContent
+            );
+
+            HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(payload, headers);
+            ResponseEntity<String> response = restTemplate.postForEntity(
+                "https://api.brevo.com/v3/smtp/email",
+                requestEntity,
+                String.class
+            );
+
+            if (response.getStatusCode().is2xxSuccessful()) {
+                log.info("OTP email successfully sent to {}", toEmail);
+            } else {
+                log.error("Failed to send OTP email. Brevo response: {}", response.getBody());
+                throw new IllegalStateException("Failed to send OTP email: Brevo API error " + response.getStatusCode());
+            }
         } catch (Exception e) {
             log.error("Failed to send OTP email to {}", toEmail, e);
             throw new IllegalStateException("Failed to send OTP email", e);

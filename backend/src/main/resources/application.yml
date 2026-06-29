@@ -80,3 +80,9 @@ management:
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
+
+brevo:
+  api-key: ${BREVO_API_KEY:}
+  sender-name: ${BREVO_SENDER_NAME:Lost & Found}
+  sender-email: ${BREVO_SENDER_EMAIL:zapter1111@gmail.com}
+

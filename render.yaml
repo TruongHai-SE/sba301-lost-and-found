@@ -56,13 +56,11 @@ services:
         value: "604800000"
       - key: GOOGLE_CLIENT_ID
         sync: false
-      - key: MAIL_HOST
-        value: smtp.gmail.com
-      - key: MAIL_PORT
-        value: "587"
-      - key: MAIL_USERNAME
+      - key: BREVO_API_KEY
         sync: false
-      - key: MAIL_PASSWORD
-        sync: false
+      - key: BREVO_SENDER_NAME
+        value: Lost & Found
+      - key: BREVO_SENDER_EMAIL
+        value: zapter1111@gmail.com
       - key: CORS_ORIGINS
         value: "*"

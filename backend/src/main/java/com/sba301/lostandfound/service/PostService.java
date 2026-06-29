@@ -17,6 +17,8 @@ public interface PostService {
 
     PageResponse<PostListResponse> getAllPosts(int page, int size, String sortBy, String direction, PostType type, PostStatus status);
 
+    PageResponse<PostListResponse> getUserPosts(int page, int size, String sortBy, String direction, PostType type, PostStatus status, Long userId);
+
     void updatePostStatus(Long id, PostStatus status);
 
     void deletePost(Long id);

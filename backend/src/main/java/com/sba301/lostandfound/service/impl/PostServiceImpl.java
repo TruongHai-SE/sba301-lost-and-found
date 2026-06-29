@@ -194,6 +194,30 @@ public class PostServiceImpl implements PostService {
 
     @Override
     @Transactional(readOnly = true)
+    public PageResponse<PostListResponse> getUserPosts(int page, int size, String sortBy, String direction, PostType type, PostStatus status, Long userId) {
+        Sort sort = Sort.by(Sort.Direction.fromString(direction), sortBy);
+        Pageable pageable = PageRequest.of(page, size, sort);
+
+        Specification<Post> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.equal(root.get("user").get("id"), userId));
+            if (type != null) {
+                predicates.add(cb.equal(root.get("type"), type));
+            }
+            if (status != null) {
+                predicates.add(cb.equal(root.get("status"), status));
+            }
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        Page<Post> postPage = postRepository.findAll(spec, pageable);
+        Page<PostListResponse> dtoPage = postPage.map(PostListResponse::from);
+
+        return PageResponse.from(dtoPage);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public PageResponse<PostListResponse> getAllPosts(int page, int size, String sortBy, String direction, PostType type, PostStatus status) {
         Sort sort = Sort.by(Sort.Direction.fromString(direction), sortBy);
         Pageable pageable = PageRequest.of(page, size, sort);

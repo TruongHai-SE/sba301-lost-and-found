@@ -4,6 +4,7 @@ import com.sba301.lostandfound.dto.ApiResponse;
 import com.sba301.lostandfound.dto.CreateFoundPostRequest;
 import com.sba301.lostandfound.dto.CreateLostPostRequest;
 import com.sba301.lostandfound.dto.CreatePostResponse;
+import com.sba301.lostandfound.dto.FullPostDetails;
 import com.sba301.lostandfound.dto.PageResponse;
 import com.sba301.lostandfound.dto.PostListResponse;
 import com.sba301.lostandfound.dto.QuestionSuggestionResponse;
@@ -149,6 +150,13 @@ public class PostController {
             @RequestParam(required = false) PostStatus status) {
         PageResponse<PostListResponse> response = postService.getAllPosts(page, size, sortBy, sortDir, type, status);
         return ResponseEntity.ok(ApiResponse.success(response, "Get all posts successfully"));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<ApiResponse<FullPostDetails>> getPostById(
+            @PathVariable Long id) {
+        FullPostDetails response = postService.getPostById(id);
+        return ResponseEntity.ok(ApiResponse.success(response, "Get post details successfully"));
     }
 
     @PatchMapping("/{id}/status")

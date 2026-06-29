@@ -31,8 +31,10 @@ import com.sba301.lostandfound.service.ImageStorageService;
 import com.sba301.lostandfound.service.PostService;
 import com.sba301.lostandfound.service.PostAiEnrichmentService;
 import com.sba301.lostandfound.service.ImageAnalysisService;
+import com.sba301.lostandfound.service.impl.ImageBlurringService;
 import com.sba301.lostandfound.dto.QuestionSuggestionResponse;
 import com.sba301.lostandfound.dto.GenerateDescriptionResponse;
+import com.sba301.lostandfound.dto.FullPostDetails;
 import com.sba301.lostandfound.dto.OllamaQuestionsResponse;
 import com.sba301.lostandfound.dto.OllamaTags;
 import org.springframework.web.multipart.MultipartFile;
@@ -72,6 +74,7 @@ public class PostServiceImpl implements PostService {
     private final VerificationAnswerRepository verificationAnswerRepository;
     private final PostAiEnrichmentService postAiEnrichmentService;
     private final ImageBlurringService imageBlurringService;
+    private final PostMapper postMapper;
 
     public PostServiceImpl(
             UserRepository userRepository,
@@ -84,7 +87,8 @@ public class PostServiceImpl implements PostService {
             VerificationRepository verificationRepository,
             VerificationAnswerRepository verificationAnswerRepository,
             PostAiEnrichmentService postAiEnrichmentService,
-            ImageBlurringService imageBlurringService) {
+            ImageBlurringService imageBlurringService,
+            PostMapper postMapper) {
         this.userRepository = userRepository;
         this.locationRepository = locationRepository;
         this.imageRepository = imageRepository;
@@ -96,6 +100,7 @@ public class PostServiceImpl implements PostService {
         this.verificationAnswerRepository = verificationAnswerRepository;
         this.postAiEnrichmentService = postAiEnrichmentService;
         this.imageBlurringService = imageBlurringService;
+        this.postMapper = postMapper;
     }
 
     @Override
@@ -214,6 +219,14 @@ public class PostServiceImpl implements PostService {
         Page<PostListResponse> dtoPage = postPage.map(PostListResponse::from);
 
         return PageResponse.from(dtoPage);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public FullPostDetails getPostById(Long id) {
+        Post post = postRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Post not found"));
+        return postMapper.toFullDetails(post, null);
     }
 
     @Override

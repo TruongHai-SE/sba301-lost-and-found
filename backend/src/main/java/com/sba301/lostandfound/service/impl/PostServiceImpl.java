@@ -42,7 +42,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -197,7 +196,6 @@ public class PostServiceImpl implements PostService {
         Pageable pageable = PageRequest.of(page, size, sort);
         
         Specification<Post> spec = (root, query, cb) -> {
-            root.fetch("location", JoinType.LEFT);
             List<Predicate> predicates = new ArrayList<>();
             if (type != null) {
                 predicates.add(cb.equal(root.get("type"), type));

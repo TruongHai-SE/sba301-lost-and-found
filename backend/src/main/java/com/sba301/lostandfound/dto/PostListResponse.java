@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.sba301.lostandfound.entity.Post;
 import java.time.LocalDateTime;
 
-public record PostAdminDTO(
+public record PostListResponse(
     @JsonProperty("id") Long id,
     @JsonProperty("title") String title,
     @JsonProperty("type") String type,
@@ -12,10 +12,11 @@ public record PostAdminDTO(
     @JsonProperty("created_at") LocalDateTime createdAt,
     @JsonProperty("delete_at") LocalDateTime deleteAt,
     @JsonProperty("owner_id") Long ownerId,
-    @JsonProperty("owner_phone") String ownerPhone
+    @JsonProperty("owner_phone") String ownerPhone,
+    @JsonProperty("location") LocationInfo location
 ) {
-    public static PostAdminDTO from(Post post) {
-        return new PostAdminDTO(
+    public static PostListResponse from(Post post) {
+        return new PostListResponse(
             post.getId(),
             post.getTitle(),
             post.getType().name(),
@@ -23,7 +24,8 @@ public record PostAdminDTO(
             post.getCreatedAt(),
             post.getDeleteAt(),
             post.getUser() != null ? post.getUser().getId() : null,
-            post.getUser() != null ? post.getUser().getPhone() : null
+            post.getUser() != null ? post.getUser().getPhone() : null,
+            LocationInfo.from(post.getLocation())
         );
     }
 }

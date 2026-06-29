@@ -5,7 +5,7 @@ import com.sba301.lostandfound.dto.CreateFoundPostRequest;
 import com.sba301.lostandfound.dto.CreateLostPostRequest;
 import com.sba301.lostandfound.dto.CreatePostResponse;
 import com.sba301.lostandfound.dto.PageResponse;
-import com.sba301.lostandfound.dto.PostAdminDTO;
+import com.sba301.lostandfound.dto.PostListResponse;
 import com.sba301.lostandfound.dto.QuestionSuggestionResponse;
 import com.sba301.lostandfound.dto.GenerateDescriptionResponse;
 import com.sba301.lostandfound.dto.SearchResponse;
@@ -111,14 +111,14 @@ public class PostController {
     }
 
     @GetMapping("/all")
-    public ResponseEntity<ApiResponse<PageResponse<PostAdminDTO>>> getAllPosts(
+    public ResponseEntity<ApiResponse<PageResponse<PostListResponse>>> getAllPosts(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "createdAt") String sortBy,
             @RequestParam(defaultValue = "DESC") String sortDir,
             @RequestParam(required = false) PostType type,
             @RequestParam(required = false) PostStatus status) {
-        PageResponse<PostAdminDTO> response = postService.getAllPosts(page, size, sortBy, sortDir, type, status);
+        PageResponse<PostListResponse> response = postService.getAllPosts(page, size, sortBy, sortDir, type, status);
         return ResponseEntity.ok(ApiResponse.success(response, "Get all posts successfully"));
     }
 

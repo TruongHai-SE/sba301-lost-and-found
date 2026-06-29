@@ -9,7 +9,7 @@ import com.sba301.lostandfound.dto.CreateFoundPostRequest;
 import com.sba301.lostandfound.dto.CreateLostPostRequest;
 import com.sba301.lostandfound.dto.CreatePostResponse;
 import com.sba301.lostandfound.dto.PageResponse;
-import com.sba301.lostandfound.dto.PostAdminDTO;
+import com.sba301.lostandfound.dto.PostListResponse;
 import com.sba301.lostandfound.dto.VerificationQuestionRequest;
 import com.sba301.lostandfound.entity.VerificationAnswer;
 import com.sba301.lostandfound.entity.Image;
@@ -42,6 +42,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -194,11 +195,12 @@ public class PostServiceImpl implements PostService {
 
     @Override
     @Transactional(readOnly = true)
-    public PageResponse<PostAdminDTO> getAllPosts(int page, int size, String sortBy, String direction, PostType type, PostStatus status) {
+    public PageResponse<PostListResponse> getAllPosts(int page, int size, String sortBy, String direction, PostType type, PostStatus status) {
         Sort sort = Sort.by(Sort.Direction.fromString(direction), sortBy);
         Pageable pageable = PageRequest.of(page, size, sort);
         
         Specification<Post> spec = (root, query, cb) -> {
+            root.fetch("location", JoinType.LEFT);
             List<Predicate> predicates = new ArrayList<>();
             if (type != null) {
                 predicates.add(cb.equal(root.get("type"), type));
@@ -210,7 +212,7 @@ public class PostServiceImpl implements PostService {
         };
         
         Page<Post> postPage = postRepository.findAll(spec, pageable);
-        Page<PostAdminDTO> dtoPage = postPage.map(PostAdminDTO::from);
+        Page<PostListResponse> dtoPage = postPage.map(PostListResponse::from);
         
         return PageResponse.from(dtoPage);
     }

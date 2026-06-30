@@ -7,6 +7,7 @@ import com.sba301.lostandfound.dto.LocationInfo;
 import com.sba301.lostandfound.dto.VerificationQuestion;
 import com.sba301.lostandfound.entity.Post;
 import com.sba301.lostandfound.entity.enums.HidePostType;
+import com.sba301.lostandfound.entity.enums.PostType;
 import com.sba301.lostandfound.service.VerificationService;
 import java.util.List;
 import org.springframework.stereotype.Component;
@@ -37,13 +38,12 @@ public class PostMapper {
     public BlurredPostSummary toBlurredSummary(Post post, Double score) {
         String blurredUrl = null;
         if (post.getImage() != null) {
+            boolean isLost = post.getType() == PostType.LOST;
             if (post.getImage().getPrivateUrl() != null && !post.getImage().getPrivateUrl().isBlank()) {
-                // New logic: url stores the blurred image
-                blurredUrl = post.getImage().getUrl();
+                blurredUrl = isLost ? post.getImage().getPrivateUrl() : post.getImage().getUrl();
             } else {
-                // Backward compatibility: url stores the clear image, privateUrl is null
                 String originalUrl = post.getImage().getUrl();
-                blurredUrl = imageBlurringService.blur(originalUrl);
+                blurredUrl = isLost ? originalUrl : imageBlurringService.blur(originalUrl);
                 if (blurredUrl == null) {
                     blurredUrl = originalUrl;
                 }

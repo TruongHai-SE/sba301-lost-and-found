@@ -6,6 +6,7 @@ import com.sba301.lostandfound.dto.FullPostDetails;
 import com.sba301.lostandfound.dto.LocationInfo;
 import com.sba301.lostandfound.dto.VerificationQuestion;
 import com.sba301.lostandfound.entity.Post;
+import com.sba301.lostandfound.entity.enums.HidePostType;
 import com.sba301.lostandfound.service.VerificationService;
 import java.util.List;
 import org.springframework.stereotype.Component;
@@ -99,11 +100,12 @@ public class PostMapper {
         }
         FullPostDetails.OwnerInfo owner = null;
         if (post.getUser() != null) {
+            boolean isPublic = post.getHidePostType() == HidePostType.PUBLIC;
             owner = new FullPostDetails.OwnerInfo(
                 post.getUser().getId(),
                 post.getUser().getName(),
-                post.getUser().getPhone(),
-                post.getUser().getMail()
+                isPublic ? post.getUser().getPhone() : null,
+                isPublic ? post.getUser().getMail() : null
             );
         }
         return new FullPostDetails(

@@ -13,9 +13,16 @@ public record PostListResponse(
     @JsonProperty("delete_at") LocalDateTime deleteAt,
     @JsonProperty("owner_id") Long ownerId,
     @JsonProperty("owner_phone") String ownerPhone,
+    @JsonProperty("image_url") String imageUrl,
     @JsonProperty("location") LocationInfo location
 ) {
     public static PostListResponse from(Post post) {
+        String imageUrl = null;
+        if (post.getImage() != null) {
+            imageUrl = (post.getImage().getPrivateUrl() != null && !post.getImage().getPrivateUrl().isBlank())
+                ? post.getImage().getPrivateUrl()
+                : post.getImage().getUrl();
+        }
         return new PostListResponse(
             post.getId(),
             post.getTitle(),
@@ -25,6 +32,7 @@ public record PostListResponse(
             post.getDeleteAt(),
             post.getUser() != null ? post.getUser().getId() : null,
             post.getUser() != null ? post.getUser().getPhone() : null,
+            imageUrl,
             LocationInfo.from(post.getLocation())
         );
     }

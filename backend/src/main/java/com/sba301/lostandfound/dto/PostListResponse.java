@@ -2,6 +2,7 @@ package com.sba301.lostandfound.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.sba301.lostandfound.entity.Post;
+import com.sba301.lostandfound.entity.enums.PostType;
 import java.time.LocalDateTime;
 
 public record PostListResponse(
@@ -19,9 +20,13 @@ public record PostListResponse(
     public static PostListResponse from(Post post) {
         String imageUrl = null;
         if (post.getImage() != null) {
-            imageUrl = (post.getImage().getPrivateUrl() != null && !post.getImage().getPrivateUrl().isBlank())
-                ? post.getImage().getPrivateUrl()
-                : post.getImage().getUrl();
+            if (post.getType() == PostType.FOUND) {
+                imageUrl = post.getImage().getUrl();
+            } else {
+                imageUrl = (post.getImage().getPrivateUrl() != null && !post.getImage().getPrivateUrl().isBlank())
+                    ? post.getImage().getPrivateUrl()
+                    : post.getImage().getUrl();
+            }
         }
         return new PostListResponse(
             post.getId(),

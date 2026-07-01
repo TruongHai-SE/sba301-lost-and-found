@@ -237,6 +237,7 @@ public class PostServiceImpl implements PostService {
         
         Specification<Post> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.equal(root.get("hidePostType"), HidePostType.PUBLIC));
             if (type != null) {
                 predicates.add(cb.equal(root.get("type"), type));
             }

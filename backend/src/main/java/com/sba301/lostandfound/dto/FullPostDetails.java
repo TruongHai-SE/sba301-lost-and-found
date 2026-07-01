@@ -18,6 +18,7 @@ public record FullPostDetails(
     @JsonProperty("description") String description,
     @JsonProperty("image_url") String imageUrl,
     @JsonProperty("type") String type,
+    @JsonProperty("hide_post_type") String hidePostType,
     @JsonProperty("event_time") LocalDateTime eventTime,
     @JsonProperty("status") String status,
     @JsonProperty("created_at") LocalDateTime createdAt,

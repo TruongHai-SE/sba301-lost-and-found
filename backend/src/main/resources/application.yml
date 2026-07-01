@@ -53,6 +53,8 @@ google:
 app:
   cors:
     allowed-origins: ${CORS_ORIGINS:*}
+  cookie:
+    secure: ${APP_COOKIE_SECURE:false}
   cleanup:
     initial-delay: ${CLEANUP_INITIAL_DELAY:5000}
     interval: ${CLEANUP_INTERVAL:3600000}

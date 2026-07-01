@@ -94,9 +94,13 @@ public class PostMapper {
     public FullPostDetails toFullDetails(Post post, Double verificationScore) {
         String imageUrl = null;
         if (post.getImage() != null) {
-            imageUrl = (post.getImage().getPrivateUrl() != null && !post.getImage().getPrivateUrl().isBlank())
-                ? post.getImage().getPrivateUrl()
-                : post.getImage().getUrl();
+            if (post.getType() == PostType.FOUND) {
+                imageUrl = post.getImage().getUrl();
+            } else {
+                imageUrl = (post.getImage().getPrivateUrl() != null && !post.getImage().getPrivateUrl().isBlank())
+                    ? post.getImage().getPrivateUrl()
+                    : post.getImage().getUrl();
+            }
         }
         FullPostDetails.OwnerInfo owner = null;
         if (post.getUser() != null) {

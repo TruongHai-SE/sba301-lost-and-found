@@ -157,7 +157,7 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         if ("*".equals(allowedOrigins)) {
             configuration.setAllowedOriginPatterns(List.of("*"));
-            configuration.setAllowCredentials(false);
+            configuration.setAllowCredentials(true);
         } else {
             configuration.setAllowedOrigins(java.util.Arrays.stream(allowedOrigins.split(","))
                     .map(String::trim)

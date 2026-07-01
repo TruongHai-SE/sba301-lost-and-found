@@ -18,6 +18,8 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.http.HttpMethod;
+
 
 @Configuration
 @EnableWebSecurity
@@ -56,8 +58,19 @@ public class SecurityConfig {
 
                 // 2. Public Auth & Identity Endpoints
                 .requestMatchers(
-                    "/api/v1/auth/**"
+                    "/api/v1/auth/**",
+                    "/api/v1/posts/all",
+                    "/api/v1/posts/all/**",
+                    "/api/v1/posts/search",
+                    "/api/v1/posts/search/**"
                 ).permitAll()
+
+                // 2.1 Public GET for post details and verification questions
+                .requestMatchers(HttpMethod.GET, "/api/v1/posts/{id}").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/posts/{postId}/verifications").permitAll()
+
+                // 2.2 Public POST for claiming a post
+                .requestMatchers(HttpMethod.POST, "/api/v1/posts/{postId}/claim").permitAll()
 
                 // 3. System & Monitoring Endpoints
                 .requestMatchers(
@@ -109,14 +122,14 @@ public class SecurityConfig {
         return (request, response, authException) -> {
             response.setContentType(org.springframework.http.MediaType.APPLICATION_JSON_VALUE);
             response.setStatus(jakarta.servlet.http.HttpServletResponse.SC_UNAUTHORIZED);
-            
+
             com.sba301.lostandfound.dto.ApiResponse<Void> apiResponse = com.sba301.lostandfound.dto.ApiResponse.error(
                     jakarta.servlet.http.HttpServletResponse.SC_UNAUTHORIZED,
                     "Unauthorized: " + authException.getMessage(),
                     request.getRequestURI(),
                     null
             );
-            
+
             objectMapper.writeValue(response.getOutputStream(), apiResponse);
         };
     }
@@ -126,14 +139,14 @@ public class SecurityConfig {
         return (request, response, accessDeniedException) -> {
             response.setContentType(org.springframework.http.MediaType.APPLICATION_JSON_VALUE);
             response.setStatus(jakarta.servlet.http.HttpServletResponse.SC_FORBIDDEN);
-            
+
             com.sba301.lostandfound.dto.ApiResponse<Void> apiResponse = com.sba301.lostandfound.dto.ApiResponse.error(
                     jakarta.servlet.http.HttpServletResponse.SC_FORBIDDEN,
                     "Access denied: " + accessDeniedException.getMessage(),
                     request.getRequestURI(),
                     null
             );
-            
+
             objectMapper.writeValue(response.getOutputStream(), apiResponse);
         };
     }

@@ -73,14 +73,4 @@ public class Post {
 
     @Column(name = "delete_at")
     private LocalDateTime deleteAt;
-
-    // === AI enrichment (Ollama + Qwen-VL) ===
-    @Column(name = "ai_description", columnDefinition = "text")
-    private String aiDescription;
-
-    @Column(name = "ai_tags", columnDefinition = "text")
-    private String aiTags;
-
-    @Column(name = "ai_enriched_at")
-    private LocalDateTime aiEnrichedAt;
 }

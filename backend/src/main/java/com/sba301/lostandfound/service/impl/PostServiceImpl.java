@@ -417,17 +417,7 @@ public class PostServiceImpl implements PostService {
             return;
         }
 
-        // Tác vụ 1: AI mô tả chi tiết hình ảnh & gán tags tìm kiếm
-        try {
-            postAiEnrichmentService.enrichDescriptionAsync(
-                post.getId(), image.getPrivateUrl(), userDescription
-            );
-        } catch (RuntimeException exception) {
-            log.warn("Failed to schedule AI description enrichment for post {}: {}",
-                post.getId(), exception.getMessage());
-        }
-
-        // Tác vụ 2: AI tự sinh câu hỏi + đáp án xác minh (chỉ áp dụng cho FOUND nếu không có custom questions)
+        // AI tự sinh câu hỏi + đáp án xác minh (chỉ áp dụng cho FOUND nếu không có custom questions)
         if (post.getType() == PostType.FOUND && (customQuestionsJson == null || customQuestionsJson.isBlank())) {
             try {
                 postAiEnrichmentService.generateVerificationQuestionsAsync(

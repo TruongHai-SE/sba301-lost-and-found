@@ -3,7 +3,6 @@ package com.sba301.lostandfound.service.impl;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sba301.lostandfound.dto.OllamaQuestionsResponse;
-import com.sba301.lostandfound.dto.OllamaTags;
 import com.sba301.lostandfound.entity.VerificationAnswer;
 import com.sba301.lostandfound.entity.Post;
 import com.sba301.lostandfound.entity.Verification;
@@ -12,7 +11,6 @@ import com.sba301.lostandfound.repository.PostRepository;
 import com.sba301.lostandfound.repository.VerificationRepository;
 import com.sba301.lostandfound.service.ImageAnalysisService;
 import com.sba301.lostandfound.service.PostAiEnrichmentService;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -63,54 +61,7 @@ public class PostAiEnrichmentServiceImpl implements PostAiEnrichmentService {
     }
 
     // ============================================================
-    // Flow 1: Enrich description + tags (dùng cho matching)
-    // ============================================================
-
-    @Override
-    @Async("aiAnalysisExecutor")
-    public CompletableFuture<Optional<OllamaTags>> enrichDescriptionAsync(
-        Long postId, String imageUrl, String userDescription
-    ) {
-        Optional<OllamaTags> result = Optional.empty();
-        try {
-            if (imageUrl == null || imageUrl.isBlank()) {
-                return CompletableFuture.completedFuture(result);
-            }
-            result = imageAnalysisService.analyzeImage(imageUrl, userDescription);
-            if (result.isPresent()) {
-                final OllamaTags tags = result.get();
-                transactionTemplate.executeWithoutResult(status ->
-                    applyDescriptionToPost(postId, tags)
-                );
-            }
-        } catch (RuntimeException exception) {
-            log.warn("AI description enrichment failed for post {}: {}", postId, exception.getMessage());
-        }
-        return CompletableFuture.completedFuture(result);
-    }
-
-    private void applyDescriptionToPost(Long postId, OllamaTags tags) {
-        Optional<Post> postOpt = postRepository.findById(postId);
-        if (postOpt.isEmpty()) {
-            log.warn("Post {} vanished before AI enrichment could save", postId);
-            return;
-        }
-        Post post = postOpt.get();
-
-        // Chỉ lưu AI description/tags vào field riêng (phục vụ matching/search).
-        // KHÔNG ghi đè description người dùng nhập - người dùng toàn quyền kiểm soát
-        // nội dung của họ. Nếu muốn AI sinh mô tả, họ chủ động bấm nút gọi
-        // POST /api/v1/posts/generate-description trước khi đăng tin.
-        post.setAiDescription(tags.description());
-        post.setAiEnrichedAt(LocalDateTime.now());
-        post.setAiTags(String.join(",", tags.tags()));
-
-        postRepository.save(post);
-        log.info("Saved AI description enrichment for post {}: tags={}", postId, tags.tags());
-    }
-
-    // ============================================================
-    // Flow 2: Generate verification questions + auto correct answers
+    // Flow: Generate verification questions + auto correct answers
     // AI tự sinh câu hỏi + đáp án chuẩn → lưu vào verifications + verification_answers.
     // Dùng cho flow verify claim (người mất search → ảnh mờ → trả lời → ảnh rõ).
     // ============================================================

@@ -88,29 +88,44 @@ public class PostMapper {
     }
 
     /**
-     * Map Post → FullPostDetails (ảnh rõ, có thông tin liên hệ).
-     * CHỈ dùng khi user đã vượt qua claim flow.
+     * Map Post → FullPostDetails dùng cho GET /posts/{id} (đường xem trực tiếp).
+     * - hidePostType = PUBLIC: trả ảnh rõ + đầy đủ thông tin liên hệ (phone, email).
+     * - hidePostType = WHEN_MATCH: trả ảnh MỜ + ẩn phone/email của chủ post;
+     *   thông tin đầy đủ chỉ được mở ra khi user vượt qua claim flow
+     *   (xem {@link VerificationServiceImpl#buildFullDetails}).
      */
     public FullPostDetails toFullDetails(Post post, Double verificationScore) {
+        boolean isPublic = post.getHidePostType() == null
+            || post.getHidePostType() == HidePostType.PUBLIC;
+
         String imageUrl = null;
         if (post.getImage() != null) {
-            if (post.getType() == PostType.FOUND) {
-                imageUrl = post.getImage().getUrl();
-            } else {
+            if (isPublic) {
                 imageUrl = (post.getImage().getPrivateUrl() != null && !post.getImage().getPrivateUrl().isBlank())
                     ? post.getImage().getPrivateUrl()
                     : post.getImage().getUrl();
+            } else {
+                imageUrl = post.getImage().getUrl();
             }
         }
+
         FullPostDetails.OwnerInfo owner = null;
         if (post.getUser() != null) {
-            boolean isPublic = post.getHidePostType() == HidePostType.PUBLIC;
-            owner = new FullPostDetails.OwnerInfo(
-                post.getUser().getId(),
-                post.getUser().getName(),
-                isPublic ? post.getUser().getPhone() : null,
-                isPublic ? post.getUser().getMail() : null
-            );
+            if (isPublic) {
+                owner = new FullPostDetails.OwnerInfo(
+                    post.getUser().getId(),
+                    post.getUser().getName(),
+                    post.getUser().getPhone(),
+                    post.getUser().getMail()
+                );
+            } else {
+                owner = new FullPostDetails.OwnerInfo(
+                    post.getUser().getId(),
+                    post.getUser().getName(),
+                    null,
+                    null
+                );
+            }
         }
         return new FullPostDetails(
             post.getId(),
@@ -118,6 +133,7 @@ public class PostMapper {
             post.getDescription(),
             imageUrl,
             post.getType() == null ? null : post.getType().name(),
+            post.getHidePostType() == null ? null : post.getHidePostType().name(),
             post.getEventTime(),
             post.getStatus() == null ? null : post.getStatus().name(),
             post.getCreatedAt(),

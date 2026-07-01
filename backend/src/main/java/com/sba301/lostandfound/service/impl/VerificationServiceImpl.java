@@ -230,6 +230,7 @@ public class VerificationServiceImpl implements VerificationService {
             post.getDescription(),
             imageUrl,
             post.getType() == null ? null : post.getType().name(),
+            post.getHidePostType() == null ? null : post.getHidePostType().name(),
             post.getEventTime(),
             post.getStatus() == null ? null : post.getStatus().name(),
             post.getCreatedAt(),

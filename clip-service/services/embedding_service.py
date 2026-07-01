@@ -31,40 +31,7 @@ def get_normalized_words(text: str) -> set[str]:
     return set(w for w in words if len(w) >= 2)
 
 
-CATEGORIES = {
-    "backpack": {"balo", "cap", "tui", "bag", "backpack", "vali"},
-    "wallet": {"vi", "bop", "wallet"},
-    "phone": {"phone", "iphone", "samsung", "oppo", "xiaomi", "redmi", "realme", "vivo", "dien", "thoai"},
-    "laptop": {"laptop", "macbook", "asus", "dell", "hp", "lenovo", "thinkpad", "computer", "pc"},
-    "keys": {"key", "keys", "chia", "khoa"},
-    "card": {"the", "card", "cccd", "cmnd", "atm", "sinh", "vien", "bpl", "gplx"},
-    "watch": {"watch", "dong", "ho"},
-    "earphones": {"airpods", "tai", "nghe", "headphone", "earphone", "earphones"},
-    "jewelry": {"nhan", "vong", "ring", "necklace", "day", "chuyen", "khuyen", "tai", "trang", "suc"},
-    "document": {"ho", "so", "giay", "to", "document", "paper"}
-}
 
-
-def get_categories(words: set[str]) -> set[str]:
-    matched_cats = set()
-    for cat_name, cat_words in CATEGORIES.items():
-        if words.intersection(cat_words):
-            matched_cats.add(cat_name)
-    return matched_cats
-
-
-CATEGORY_PROMPTS = {
-    "backpack": "a photo of a backpack, bag, or suitcase",
-    "wallet": "a photo of a wallet, purse, or clutch",
-    "phone": "a photo of a phone, smartphone, or cell phone",
-    "laptop": "a photo of a laptop computer",
-    "keys": "a photo of keys or keychains",
-    "card": "a photo of an identity card, credit card, or driver's license",
-    "watch": "a photo of a watch or wristwatch",
-    "earphones": "a photo of earphones, headphones, or earbuds",
-    "jewelry": "a photo of jewelry, a ring, necklace, or earrings",
-    "document": "a photo of documents, papers, or certificates"
-}
 
 
 class EmbeddingService:
@@ -74,11 +41,6 @@ class EmbeddingService:
         self.clip = CLIPOnnxEngine()
         self.yolo = YOLODetector(settings.resolved_yolo_model_path)
         self.store = VectorStore()
-
-        # Precompute category embeddings for zero-shot image classification
-        self.category_embeddings = {}
-        for cat_name, prompt in CATEGORY_PROMPTS.items():
-            self.category_embeddings[cat_name] = self.clip.encode_text(prompt, translate=False)
 
 
     # Public methods
@@ -96,6 +58,9 @@ class EmbeddingService:
             source_type="IMAGE",
             image_id=image_id,
         )
+
+        # Consistency check: compare IMAGE embedding with existing TEXT embedding
+        self._check_consistency(post_id, embedding, "IMAGE")
 
         # Cross match: LOST searches FOUND, and FOUND searches LOST
         target = "FOUND" if post_type == "LOST" else "LOST"
@@ -116,6 +81,9 @@ class EmbeddingService:
             image_id=None,
         )
 
+        # Consistency check: compare TEXT embedding with existing IMAGE embedding
+        self._check_consistency(post_id, embedding, "TEXT")
+
         # Cross match: LOST searches FOUND, and FOUND searches LOST
         target = "FOUND" if post_type == "LOST" else "LOST"
         matches = self._match(embedding, target_post_type=target, query_type="TEXT", query_text=text)
@@ -135,7 +103,7 @@ class EmbeddingService:
             settings.clip_match_threshold if threshold is None else threshold
         )
 
-        q_text = None
+        q_text = query_text
         if query_image_url:
             img = self._download_image(query_image_url)
             cropped = self.yolo.crop_main_object(img)
@@ -144,7 +112,6 @@ class EmbeddingService:
         elif query_text:
             vec = self.clip.encode_text(query_text, translate=True)
             query_type = "TEXT"
-            q_text = query_text
         else:
             return []
 
@@ -154,6 +121,60 @@ class EmbeddingService:
         return self.store.delete_by_post(post_id)
 
     # Internal methods
+    def _scale_score(self, score: float, query_type: str, source_type: str) -> float:
+        raw = score * 100.0
+        if query_type == source_type:
+            if query_type == "TEXT":
+                zero_b = 50.0
+                min_b = 74.0
+                max_b = 99.0
+            else:
+                zero_b = 20.0
+                min_b = 40.0
+                max_b = 95.0
+        else:
+            zero_b = 10.0
+            min_b = settings.clip_score_min  # 21.0
+            max_b = settings.clip_score_max  # 29.0
+
+        if raw >= min_b:
+            scaled = 50.0 + (raw - min_b) / (max_b - min_b) * 50.0
+        else:
+            scaled = (raw - zero_b) / (min_b - zero_b) * 50.0
+
+        return max(0.0, min(100.0, scaled))
+
+    def _check_consistency(self, post_id: int, new_embedding: np.ndarray, new_type: str):
+        """Check consistency between TEXT and IMAGE embeddings of the same post."""
+        other_type = "TEXT" if new_type == "IMAGE" else "IMAGE"
+        try:
+            with self.store.conn:
+                with self.store.conn.cursor() as cursor:
+                    cursor.execute(
+                        "SELECT embedding FROM clip_embeddings WHERE post_id = %s AND source_type = %s LIMIT 1",
+                        (post_id, other_type),
+                    )
+                    row = cursor.fetchone()
+                    if row is None:
+                        return  # Other embedding not yet indexed
+                    # Parse the stored vector string back to numpy array
+                    vec_str = row[0]
+                    if isinstance(vec_str, str):
+                        other_vec = np.array([float(x) for x in vec_str.strip("[]").split(",")])
+                    else:
+                        other_vec = np.array(vec_str)
+                    other_vec = other_vec / np.linalg.norm(other_vec)
+                    cosine = float(np.dot(new_embedding, other_vec))
+                    if cosine < 0.15:
+                        print(f"[Consistency] ⚠️ LOW consistency for post {post_id}: "
+                              f"{new_type} vs {other_type} cosine = {cosine:.4f}. "
+                              f"Title and image may not match.")
+                    else:
+                        print(f"[Consistency] ✅ Post {post_id}: "
+                              f"{new_type} vs {other_type} cosine = {cosine:.4f}")
+        except Exception as e:
+            print(f"[Consistency] Error checking post {post_id}: {e}")
+
     def _match(
         self,
         query_vec: np.ndarray,
@@ -166,104 +187,86 @@ class EmbeddingService:
         threshold = (
             settings.clip_match_threshold if threshold is None else threshold
         )
-        # Fetch slightly more than top_k from db to account for duplicate post_ids
+        # Fetch slightly more than top_k from db to account for grouping by post_id
         results = self.store.search(query_vec, target_post_type, top_k * 2, threshold)
 
         query_words = get_normalized_words(query_text) if query_text else set()
 
-        # Determine query categories (zero-shot for image, lexical for text)
-        q_cats = set()
-        if query_type == "IMAGE":
-            best_cat = None
-            best_sim = -1.0
-            for cat_name, cat_emb in self.category_embeddings.items():
-                sim = float(np.dot(query_vec, cat_emb))
-                if sim > best_sim:
-                    best_sim = sim
-                    best_cat = cat_name
-            if best_sim > 0.20:
-                q_cats.add(best_cat)
-        else:
-            q_cats = get_categories(query_words)
-
-        best_matches = {}
+        posts_data = {}
         for result in results:
             post_id = result["post_id"]
-            score = float(result["score"])
+            if post_id not in posts_data:
+                posts_data[post_id] = {
+                    "result": result,
+                    "image_scores": [],
+                    "text_scores": []
+                }
+
             source_type = result.get("source_type", "IMAGE")
+            score = float(result["score"])
+            if source_type == "IMAGE":
+                posts_data[post_id]["image_scores"].append(score)
+            elif source_type == "TEXT":
+                posts_data[post_id]["text_scores"].append(score)
+
+        final_results = []
+        for post_id, data in posts_data.items():
+            result = data["result"]
             title = result.get("title", "")
             description = result.get("description", "")
 
-            # Determine scaling bounds dynamically depending on modality match
-            if query_type == source_type:
-                if query_type == "TEXT":
-                    # Same modality TEXT-TEXT uses elevated bounds to reduce cone noise
-                    zero_b = 50.0
-                    min_b = 74.0
-                    max_b = 90.0
-                else:
-                    # Same modality IMAGE-IMAGE uses standard image bounds
-                    zero_b = 20.0
-                    min_b = 40.0
-                    max_b = 85.0
-            else:
-                # Cross modality (TEXT-IMAGE or IMAGE-TEXT) uses standard CLIP bounds
-                zero_b = 10.0
-                min_b = settings.clip_score_min # 21.0
-                max_b = settings.clip_score_max # 29.0
+            best_img = max(data["image_scores"]) if data["image_scores"] else None
+            best_txt = max(data["text_scores"]) if data["text_scores"] else None
 
-            raw = score * 100
+            scaled_img = None
+            if best_img is not None:
+                scaled_img = self._scale_score(best_img, query_type, "IMAGE")
 
-            # Lexical boosting and category mismatch checks
+            scaled_txt = None
+            if best_txt is not None:
+                scaled_txt = self._scale_score(best_txt, query_type, "TEXT")
+
             has_overlap = False
-            post_words = set()
+            overlap_count = 0
             if query_words and (title or description):
                 title_desc = f"{title} {description if description else ''}"
                 post_words = get_normalized_words(title_desc)
                 overlap = query_words.intersection(post_words)
                 if overlap:
                     has_overlap = True
-                    # 8% boost per overlapping word
-                    raw = raw + (len(overlap) * 8.0)
+                    overlap_count = len(overlap)
 
-            is_cat_mismatch = False
-            if q_cats and (title or description):
-                if not post_words:
-                    title_desc = f"{title} {description if description else ''}"
-                    post_words = get_normalized_words(title_desc)
-                post_cats = get_categories(post_words)
-                if post_cats and q_cats.isdisjoint(post_cats):
-                    is_cat_mismatch = True
-                    raw = raw - 15.0 # Apply raw score category penalty
+            is_text_text_no_overlap = (query_type == "TEXT" and best_txt is not None and query_words and not has_overlap)
 
-            # For TEXT-to-TEXT search: penalize and cap if there is absolutely no lexical overlap
-            is_text_text_no_overlap = (query_type == "TEXT" and source_type == "TEXT" and query_words and not has_overlap)
-            if is_text_text_no_overlap:
-                raw = raw - 5.0 # Apply raw score penalty
-
-            if raw >= min_b:
-                scaled_score = 50.0 + (raw - min_b) / (max_b - min_b) * 50.0
+            # Combine scores using same-modality weighting
+            if scaled_img is not None and scaled_txt is not None:
+                if query_type == "IMAGE":
+                    combined_score = 0.7 * scaled_img + 0.3 * scaled_txt
+                else:
+                    if is_text_text_no_overlap:
+                        scaled_txt = max(0.0, scaled_txt - 5.0)
+                        scaled_txt = min(30.0, scaled_txt)
+                    combined_score = 0.7 * scaled_txt + 0.3 * scaled_img
+            elif scaled_img is not None:
+                combined_score = scaled_img
+            elif scaled_txt is not None:
+                if is_text_text_no_overlap:
+                    scaled_txt = max(0.0, scaled_txt - 5.0)
+                    scaled_txt = min(30.0, scaled_txt)
+                combined_score = scaled_txt
             else:
-                scaled_score = (raw - zero_b) / (min_b - zero_b) * 50.0
+                combined_score = 0.0
 
-            scaled_score = round(max(0.0, min(100.0, scaled_score)), 2)
+            # Apply lexical boost to combined score
+            if has_overlap:
+                combined_score = combined_score + (overlap_count * 3.0)
 
-            if is_text_text_no_overlap or is_cat_mismatch:
-                scaled_score = min(30.0, scaled_score) # Cap scaled score at 30%
+            combined_score = round(max(0.0, min(100.0, combined_score)), 2)
 
-
-            if post_id not in best_matches or scaled_score > best_matches[post_id]["scaled_score"]:
-                best_matches[post_id] = {
-                    "result": result,
-                    "score": score,
-                    "scaled_score": scaled_score
-                }
-
-        final_results = []
-        for post_id, info in best_matches.items():
-            res = info["result"]
-            res["human_score"] = f"{info['scaled_score']:.2f}%"
-            res["score"] = round(info["score"], 4)
+            # Reconstruct result to match expectations
+            res = result.copy()
+            res["human_score"] = f"{combined_score:.2f}%"
+            res["score"] = round(best_img if query_type == "IMAGE" and best_img is not None else (best_txt if best_txt is not None else (best_img if best_img is not None else 0.0)), 4)
             # Remove helper fields to maintain backend compatibility
             res.pop("source_type", None)
             res.pop("title", None)

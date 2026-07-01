@@ -165,6 +165,16 @@ async def delete_embeddings(post_id: int):
     return {"status": "deleted", "count": count}
 
 
+@app.api_route("/", methods=["GET", "HEAD"])
+async def root():
+    """Root endpoint to pass Hugging Face health check and readiness probe."""
+    return {
+        "status": "ok",
+        "message": "CLIP Service is running",
+        "health_check_url": "/api/v1/health"
+    }
+
+
 @app.api_route("/api/v1/health", methods=["GET", "HEAD"])
 async def health():
     """Check service health."""

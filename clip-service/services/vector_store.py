@@ -56,7 +56,7 @@ class VectorStore:
         threshold: float = 0.5,
     ) -> list[dict]:
         """
-        Run cosine similarity search against active posts.
+        Run cosine similarity search against active posts using HNSW CTE.
         
         Filter by target_post_type ('LOST', 'FOUND', or 'ALL').
         """
@@ -67,18 +67,29 @@ class VectorStore:
             ) as cursor:
                 cursor.execute(
                     """
+                    WITH nearest_embeddings AS (
+                        SELECT ce.id AS emb_id, ce.post_id,
+                               1 - (ce.embedding <=> %s::vector) AS score
+                        FROM clip_embeddings ce
+                        JOIN posts p ON p.id = ce.post_id
+                        WHERE p.status = 'ACTIVE'
+                          AND (%s = 'ALL' OR p.type = %s)
+                          AND 1 - (ce.embedding <=> %s::vector) >= %s
+                        ORDER BY ce.embedding <=> %s::vector
+                        LIMIT %s
+                    ),
+                    candidate_posts AS (
+                        SELECT DISTINCT post_id FROM nearest_embeddings
+                    )
                     SELECT ce.id, ce.post_id, ce.image_id, ce.source_type, p.type as post_type,
                            p.title, p.description,
-                           1 - (ce.embedding <=> %s::vector) AS score
+                           COALESCE(ne.score, 1 - (ce.embedding <=> %s::vector)) AS score
                     FROM clip_embeddings ce
                     JOIN posts p ON p.id = ce.post_id
-                    WHERE p.status = 'ACTIVE'
-                      AND (%s = 'ALL' OR p.type = %s)
-                      AND 1 - (ce.embedding <=> %s::vector) >= %s
-                    ORDER BY ce.embedding <=> %s::vector
-                    LIMIT %s
+                    JOIN candidate_posts cp ON ce.post_id = cp.post_id
+                    LEFT JOIN nearest_embeddings ne ON ce.id = ne.emb_id
                     """,
-                    (vec_str, target_post_type, target_post_type, vec_str, threshold, vec_str, top_k),
+                    (vec_str, target_post_type, target_post_type, vec_str, threshold, vec_str, top_k, vec_str),
                 )
                 return [dict(row) for row in cursor.fetchall()]
 

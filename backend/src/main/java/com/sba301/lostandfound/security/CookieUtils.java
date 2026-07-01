@@ -11,14 +11,14 @@ public final class CookieUtils {
     private CookieUtils() {
     }
 
-    // HttpOnly + SameSite=Lax to prevent XSS token theft
+    // HttpOnly + SameSite=Lax (or None if secure) to prevent XSS token theft and support cross-site requests
     public static ResponseCookie createRefreshTokenCookie(String token, long maxAgeSeconds, boolean secure) {
         return ResponseCookie.from(REFRESH_TOKEN_COOKIE, token)
                 .httpOnly(true)
                 .secure(secure)
                 .path("/api/v1/auth")
                 .maxAge(maxAgeSeconds)
-                .sameSite("Lax")
+                .sameSite(secure ? "None" : "Lax")
                 .build();
     }
 
@@ -28,7 +28,7 @@ public final class CookieUtils {
                 .secure(secure)
                 .path("/api/v1/auth")
                 .maxAge(0)
-                .sameSite("Lax")
+                .sameSite(secure ? "None" : "Lax")
                 .build();
     }
 

@@ -16,6 +16,8 @@ import com.sba301.lostandfound.entity.enums.PostType;
 import com.sba301.lostandfound.security.CustomUserDetails;
 import com.sba301.lostandfound.service.PostService;
 import com.sba301.lostandfound.service.SearchService;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -150,6 +152,17 @@ public class PostController {
             @RequestParam(required = false) PostStatus status) {
         PageResponse<PostListResponse> response = postService.getAllPosts(page, size, sortBy, sortDir, type, status);
         return ResponseEntity.ok(ApiResponse.success(response, "Get all posts successfully"));
+    }
+
+    @GetMapping("/filter")
+    public ResponseEntity<ApiResponse<PageResponse<PostListResponse>>> filterPosts(
+            @RequestParam(required = false) LocalDate date,
+            @RequestParam(required = false) LocalTime time,
+            @RequestParam(required = false) String district,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        PageResponse<PostListResponse> response = postService.filterPosts(date, time, district, page, size);
+        return ResponseEntity.ok(ApiResponse.success(response, "Filter posts successfully"));
     }
 
     @GetMapping("/{id}")

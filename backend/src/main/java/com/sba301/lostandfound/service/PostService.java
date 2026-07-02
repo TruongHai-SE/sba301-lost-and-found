@@ -1,5 +1,7 @@
 package com.sba301.lostandfound.service;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
 import com.sba301.lostandfound.dto.CreateFoundPostRequest;
 import com.sba301.lostandfound.dto.CreateLostPostRequest;
 import com.sba301.lostandfound.dto.CreatePostResponse;
@@ -19,6 +21,7 @@ public interface PostService {
 
     PageResponse<PostListResponse> getUserPosts(int page, int size, String sortBy, String direction, PostType type, PostStatus status, Long userId);
 
+    PageResponse<PostListResponse> filterPosts(LocalDate date, LocalTime time, String district, int page, int size);
     FullPostDetails getPostById(Long id);
 
     void updatePostStatus(Long id, PostStatus status);

@@ -28,6 +28,13 @@ async def lifespan(app: FastAPI):
     dbg_logger.info("====== [DEBUG] End of file listing ======")
     
     svc = EmbeddingService()
+    # Warm-up models to eliminate cold start latency for the first request
+    try:
+        logger.info("[Lifespan] Warming up models (CLIP & Translator)...")
+        svc.clip.encode_text("ấm chén trà", translate=True)
+        logger.info("[Lifespan] Models warmed up successfully!")
+    except Exception as e:
+        logger.error(f"[Lifespan] Failed to warm up models: {e}")
     yield
     if svc:
         svc.store.close()

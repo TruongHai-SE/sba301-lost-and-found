@@ -12,6 +12,10 @@ import com.sba301.lostandfound.service.SearchService;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -111,10 +115,20 @@ public class SearchServiceImpl implements SearchService {
             return new SearchResponse(queryType, 0, List.of());
         }
 
+        List<Long> postIds = response.matches().stream()
+            .map(ClipMatch::postId)
+            .filter(Objects::nonNull)
+            .toList();
+
+        List<Post> posts = postIds.isEmpty() ? List.of() : postRepository.findAllByIdIn(postIds);
+
+        Map<Long, Post> postMap = posts.stream()
+            .collect(Collectors.toMap(Post::getId, Function.identity()));
+
         List<BlurredPostSummary> results = new ArrayList<>();
         for (ClipMatch match : response.matches()) {
             if (match.postId() == null) continue;
-            Post post = postRepository.findById(match.postId()).orElse(null);
+            Post post = postMap.get(match.postId());
             if (post == null) continue;
             results.add(postMapper.toBlurredSummary(post, match));
         }

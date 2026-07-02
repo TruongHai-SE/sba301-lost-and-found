@@ -1,6 +1,7 @@
 package com.sba301.lostandfound.repository;
 
 import com.sba301.lostandfound.entity.Post;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -16,6 +17,9 @@ public interface PostRepository extends JpaRepository<Post, Long>, JpaSpecificat
     Optional<Post> findById(Long id);
 
     @Override
-    @EntityGraph(attributePaths = {"location"})
+    @EntityGraph(attributePaths = {"user", "image", "location"})
     Page<Post> findAll(Specification<Post> spec, Pageable pageable);
+
+    @EntityGraph(attributePaths = {"user", "image", "location"})
+    List<Post> findAllByIdIn(List<Long> ids);
 }

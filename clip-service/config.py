@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     clip_model_dir: str = ".local/models/clip_onnx_large_model"
     yolo_model_path: str = ".local/models/yolov8n.pt"
     translation_model_dir: str = ".local/models/opus_mt_vi_en_onnx"
+    translation_priority: str = "azure"
     clip_api_token: str = "your-secure-api-token-here"
     clip_score_min: float = 21.0
     clip_score_max: float = 29.0

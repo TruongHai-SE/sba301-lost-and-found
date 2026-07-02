@@ -26,7 +26,7 @@ if not exist "%~dp0..\..\clip-service\.local\models\clip_onnx_large_model\model_
 )
 if not exist "%~dp0..\..\clip-service\.local\models\opus_mt_vi_en_onnx\pytorch_model.bin" (
     echo [ERROR] Missing clip-service\.local\models\opus_mt_vi_en_onnx\pytorch_model.bin
-    echo         Run: cd clip-service && .venv\Scripts\python.exe scripts\export_and_prepare_models.py
+    echo         Run: cd clip-service ^&^& .venv\Scripts\python.exe scripts\export_and_prepare_models.py
     pause
     exit /b 1
 )
@@ -55,4 +55,4 @@ echo [4/4] Starting CLIP Service on port 8000...
 echo       Swagger UI: http://localhost:8000/docs
 echo ============================================
 cd /d "%~dp0..\..\clip-service"
-"%PYTHON_EXE%" -B -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+"%PYTHON_EXE%" -B -m uvicorn main:app --host 0.0.0.0 --port 8000

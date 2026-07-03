@@ -31,7 +31,6 @@ public record PostListResponse(
             }
         }
 
-
         return new PostListResponse(
                 post.getId(),
                 post.getTitle(),

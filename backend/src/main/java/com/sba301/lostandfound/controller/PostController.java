@@ -16,8 +16,6 @@ import com.sba301.lostandfound.entity.enums.PostType;
 import com.sba301.lostandfound.security.CustomUserDetails;
 import com.sba301.lostandfound.service.PostService;
 import com.sba301.lostandfound.service.SearchService;
-import java.time.LocalDate;
-import java.time.LocalTime;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -156,14 +154,17 @@ public class PostController {
 
     @GetMapping("/filter")
     public ResponseEntity<ApiResponse<PageResponse<PostListResponse>>> filterPosts(
-            @RequestParam(required = false) LocalDate date,
-            @RequestParam(required = false) LocalTime time,
-            @RequestParam(required = false) String district,
+            @ModelAttribute com.sba301.lostandfound.dto.PostFilterRequest filterRequest,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        PageResponse<PostListResponse> response = postService.filterPosts(date, time, district, page, size);
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "DESC") String sortDir,
+            @RequestParam(required = false) PostType type,
+            @RequestParam(required = false) PostStatus status) {
+        PageResponse<PostListResponse> response = postService.filterPosts(filterRequest, page, size, sortBy, sortDir, type, status);
         return ResponseEntity.ok(ApiResponse.success(response, "Filter posts successfully"));
     }
+
 
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<FullPostDetails>> getPostById(

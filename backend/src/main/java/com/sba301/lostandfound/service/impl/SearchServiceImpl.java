@@ -125,7 +125,9 @@ public class SearchServiceImpl implements SearchService {
 
         List<BlurredPostSummary> results = new ArrayList<>();
         for (ClipMatch match : response.matches()) {
-            if (match.postId() == null || (match.score() != null && match.score() < 0.5))
+            if (match.postId() == null)
+                continue;
+            if (match.score() != null && match.score() < 0.5)
                 continue;
             Post post = postMap.get(match.postId());
             if (post == null)

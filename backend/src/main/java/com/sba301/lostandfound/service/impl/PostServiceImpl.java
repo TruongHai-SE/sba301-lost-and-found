@@ -42,6 +42,7 @@ import java.util.Optional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 import jakarta.persistence.criteria.Predicate;
@@ -242,6 +243,35 @@ public class PostServiceImpl implements PostService {
             }
             if (status != null) {
                 predicates.add(cb.equal(root.get("status"), status));
+            }
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        Page<Post> postPage = postRepository.findAll(spec, pageable);
+        Page<PostListResponse> dtoPage = postPage.map(PostListResponse::from);
+
+        return PageResponse.from(dtoPage);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<PostListResponse> filterPosts(LocalDate date, LocalTime time, String district, int page, int size) {
+        Sort sort = Sort.by(Sort.Direction.DESC, "createdAt");
+        Pageable pageable = PageRequest.of(page, size, sort);
+
+        Specification<Post> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            
+            if (date != null) {
+                predicates.add(cb.equal(cb.function("DATE", LocalDate.class, root.get("eventTime")), date));
+            }
+            if (time != null) {
+                // Approximate time filter or exact if supported.
+                // Cast datetime to string and check if it contains the time string.
+                predicates.add(cb.like(cb.function("CAST", String.class, root.get("eventTime")), "% " + time.toString() + "%"));
+            }
+            if (district != null && !district.isBlank()) {
+                predicates.add(cb.equal(root.get("location").get("district"), district));
             }
             return cb.and(predicates.toArray(new Predicate[0]));
         };

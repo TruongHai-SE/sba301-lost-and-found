@@ -6,16 +6,16 @@ CREATE SCHEMA IF NOT EXISTS extensions;
 
 DO $$
 DECLARE
-    v_current_schema text;
+    current_schema text;
 BEGIN
-    SELECT n.nspname INTO v_current_schema
+    SELECT n.nspname INTO current_schema
     FROM pg_extension e 
     JOIN pg_namespace n ON e.extnamespace = n.oid 
     WHERE e.extname = 'vector';
 
-    IF v_current_schema IS NULL THEN
+    IF current_schema IS NULL THEN
         CREATE EXTENSION vector SCHEMA extensions;
-    ELSIF v_current_schema <> 'extensions' THEN
+    ELSIF current_schema <> 'extensions' THEN
         ALTER EXTENSION vector SET SCHEMA extensions;
     END IF;
 END
@@ -64,9 +64,6 @@ CREATE TABLE IF NOT EXISTS posts (
     status          VARCHAR(10) DEFAULT 'ACTIVE',
     hide_post_type  VARCHAR(10) DEFAULT 'PUBLIC',
     delete_at       TIMESTAMP,
-    ai_description  TEXT,
-    ai_tags         TEXT,
-    ai_enriched_at  TIMESTAMP,
     CONSTRAINT fk_posts_image FOREIGN KEY (image_id) REFERENCES images(id)
 );
 
@@ -145,7 +142,6 @@ CREATE INDEX IF NOT EXISTS idx_posts_type ON posts(type);
 CREATE INDEX IF NOT EXISTS idx_posts_status ON posts(status);
 CREATE INDEX IF NOT EXISTS idx_posts_user ON posts(user_id);
 CREATE INDEX IF NOT EXISTS idx_verifications_post_idx ON verifications(post_id, question_index) WHERE post_id IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_posts_ai_enriched_at ON posts(ai_enriched_at) WHERE ai_enriched_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON refresh_tokens(user_id);
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expires_at ON refresh_tokens(expires_at);
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_revoked ON refresh_tokens(revoked);

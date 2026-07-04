@@ -35,6 +35,7 @@ env.zip
 *.zip
 *.log
 *.sql
+!backend/src/main/resources/db/migration/*.sql
 scripts/db/
 
 # ===== OS =====

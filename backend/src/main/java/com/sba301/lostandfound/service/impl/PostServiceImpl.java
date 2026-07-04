@@ -1,16 +1,11 @@
 package com.sba301.lostandfound.service.impl;
 
 import com.sba301.lostandfound.client.ClipClient;
-import com.sba301.lostandfound.dto.ClipEmbedResponse;
+import com.sba301.lostandfound.dto.*;
+
 import java.util.Base64;
 import java.io.IOException;
-import com.sba301.lostandfound.dto.ClipMatch;
-import com.sba301.lostandfound.dto.CreateFoundPostRequest;
-import com.sba301.lostandfound.dto.CreateLostPostRequest;
-import com.sba301.lostandfound.dto.CreatePostResponse;
-import com.sba301.lostandfound.dto.PageResponse;
-import com.sba301.lostandfound.dto.PostListResponse;
-import com.sba301.lostandfound.dto.VerificationQuestionRequest;
+
 import com.sba301.lostandfound.entity.VerificationAnswer;
 import com.sba301.lostandfound.entity.Image;
 import com.sba301.lostandfound.entity.Location;
@@ -32,14 +27,9 @@ import com.sba301.lostandfound.service.PostService;
 import com.sba301.lostandfound.service.PostAiEnrichmentService;
 import com.sba301.lostandfound.service.ImageAnalysisService;
 import com.sba301.lostandfound.service.impl.ImageBlurringService;
-import com.sba301.lostandfound.dto.QuestionSuggestionResponse;
-import com.sba301.lostandfound.dto.GenerateDescriptionResponse;
-import com.sba301.lostandfound.dto.FullPostDetails;
-import com.sba301.lostandfound.dto.OllamaQuestionsResponse;
-import com.sba301.lostandfound.dto.OllamaTags;
 import org.springframework.web.multipart.MultipartFile;
 import java.util.Optional;
-
+import com.sba301.lostandfound.dto.PostFilterRequest;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -149,7 +139,6 @@ public class PostServiceImpl implements PostService {
                             .build()));
         }
 
-
         // 2. Lưu vị trí và hình ảnh lên Cloudinary
         Location location = request.hasLocation() ? saveLocationForFound(request) : null;
         Image image = request.hasImage() ? uploadAndSaveImageForFound(request) : null;
@@ -199,7 +188,8 @@ public class PostServiceImpl implements PostService {
 
     @Override
     @Transactional(readOnly = true)
-    public PageResponse<PostListResponse> getUserPosts(int page, int size, String sortBy, String direction, PostType type, PostStatus status, Long userId) {
+    public PageResponse<PostListResponse> getUserPosts(int page, int size, String sortBy, String direction,
+                                                       PostType type, PostStatus status, Long userId) {
         Sort sort = Sort.by(Sort.Direction.fromString(direction), sortBy);
         Pageable pageable = PageRequest.of(page, size, sort);
 
@@ -231,10 +221,11 @@ public class PostServiceImpl implements PostService {
 
     @Override
     @Transactional(readOnly = true)
-    public PageResponse<PostListResponse> getAllPosts(int page, int size, String sortBy, String direction, PostType type, PostStatus status) {
+    public PageResponse<PostListResponse> getAllPosts(int page, int size, String sortBy, String direction,
+                                                      PostType type, PostStatus status) {
         Sort sort = Sort.by(Sort.Direction.fromString(direction), sortBy);
         Pageable pageable = PageRequest.of(page, size, sort);
-        
+
         Specification<Post> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
             if (type != null) {
@@ -254,19 +245,68 @@ public class PostServiceImpl implements PostService {
 
     @Override
     @Transactional(readOnly = true)
-    public PageResponse<PostListResponse> filterPosts(com.sba301.lostandfound.dto.PostFilterRequest request, int page, int size, String sortBy, String direction, PostType type, PostStatus status) {
+    public PageResponse<PostListResponse> filterPosts(PostFilterRequest request, int page,
+                                                      int size, String sortBy, String direction, PostType type, PostStatus status) {
+        System.out.println("========== ĐÃ VÀO ĐƯỢC CONTROLLER FILTER ==========");
+        System.out.println("Ngày nhận: " + request.getDate());
+        System.out.println("Giờ nhận: " + request.getTime());
         Sort sort = Sort.by(Sort.Direction.fromString(direction), sortBy);
         Pageable pageable = PageRequest.of(page, size, sort);
-        
-        Specification<Post> spec = com.sba301.lostandfound.repository.specification.PostSpecification.withFilter(request, type, status);
+
+        Specification<Post> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            // Only show public posts by default for search/filter
+//            predicates.add(cb.or(
+//                    cb.isNull(root.get("hidePostType")),
+//                    cb.equal(root.get("hidePostType"), HidePostType.PUBLIC)));
+
+            if (type != null) {
+                predicates.add(cb.equal(root.get("type"), type));
+            }
+            if (status != null) {
+                predicates.add(cb.equal(root.get("status"), status));
+            }
+
+            if (request != null) {
+                if (request.getDistrict() != null && !request.getDistrict().trim().isEmpty()) {
+                    predicates.add(cb.like(
+                            cb.lower(root.join("location").get("district")),
+                            "%" + request.getDistrict().trim().toLowerCase() + "%"));
+                }
+
+                if (request.getDate() != null && request.getTime() != null) {
+                    // Both Date and Time are present: range +/- 1 hour
+                    LocalDateTime targetDateTime = request.getDate().atTime(request.getTime());
+                    LocalDateTime start = targetDateTime.minusHours(1);
+                    LocalDateTime end = targetDateTime.plusHours(1);
+                    predicates.add(cb.between(root.get("eventTime"), start, end));
+                    // Sửa lại nhánh chỉ có Date:
+                } else if (request.getDate() != null) {
+                    LocalDateTime startOfDay = request.getDate().atStartOfDay();
+                    // Bỏ LocalTime.MAX đi, thay bằng dòng dưới:
+                    LocalDateTime endOfDay = request.getDate().atTime(23, 59, 59);
+                    predicates.add(cb.between(root.get("eventTime"), startOfDay, endOfDay));
+                } else if (request.getTime() != null) {
+                    // Only Time is present: match by hour using PostgreSQL's native date_part function
+                    predicates.add(cb.equal(
+                            cb.function("date_part", Integer.class, cb.literal("hour"), root.get("eventTime")),
+                            request.getTime().getHour()));
+                }
+            }
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
 
         Page<Post> postPage = postRepository.findAll(spec, pageable);
-        Page<PostListResponse> dtoPage = postPage.map(PostListResponse::from);
 
+
+        // THÊM DÒNG NÀY ĐỂ XEM KẾT QUẢ TỪ DB:
+        System.out.println("TỔNG SỐ BẢN GHI TÌM ĐƯỢC TRONG DB: " + postPage.getTotalElements());
+
+        Page<PostListResponse> dtoPage = postPage.map(PostListResponse::from);
         return PageResponse.from(dtoPage);
     }
-
-
 
     @Override
     @Transactional
@@ -310,8 +350,8 @@ public class PostServiceImpl implements PostService {
     }
 
     private Image uploadAndSaveImage(CreateLostPostRequest request) {
-        String originalUrl = (request.getImage() != null && !request.getImage().isEmpty()) 
-                ? imageStorageService.upload(request.getImage()) 
+        String originalUrl = (request.getImage() != null && !request.getImage().isEmpty())
+                ? imageStorageService.upload(request.getImage())
                 : request.getImageUrl();
         String blurredUrl = imageBlurringService.blur(originalUrl);
         if (blurredUrl == null) {
@@ -386,7 +426,8 @@ public class PostServiceImpl implements PostService {
                     String text = post.getTitle() + (description != null ? ". " + description : "");
                     clipClient.embedText(post.getId(), text, "FOUND");
                 } catch (Exception e) {
-                    log.warn("Failed to index text embedding for found post with image {}: {}", post.getId(), e.getMessage());
+                    log.warn("Failed to index text embedding for found post with image {}: {}", post.getId(),
+                            e.getMessage());
                 }
             } else {
                 String text = post.getTitle() + (description != null ? ". " + description : "");
@@ -414,8 +455,8 @@ public class PostServiceImpl implements PostService {
     }
 
     private Image uploadAndSaveImageForFound(CreateFoundPostRequest request) {
-        String originalUrl = (request.getImage() != null && !request.getImage().isEmpty()) 
-                ? imageStorageService.upload(request.getImage()) 
+        String originalUrl = (request.getImage() != null && !request.getImage().isEmpty())
+                ? imageStorageService.upload(request.getImage())
                 : request.getImageUrl();
         String blurredUrl = imageBlurringService.blur(originalUrl);
         if (blurredUrl == null) {
@@ -433,18 +474,19 @@ public class PostServiceImpl implements PostService {
             return;
         }
 
-        // AI tự sinh câu hỏi + đáp án xác minh (chỉ áp dụng cho FOUND nếu không có custom questions)
+        // AI tự sinh câu hỏi + đáp án xác minh (chỉ áp dụng cho FOUND nếu không có
+        // custom questions)
         if (post.getType() == PostType.FOUND && (customQuestionsJson == null || customQuestionsJson.isBlank())) {
             try {
                 postAiEnrichmentService.generateVerificationQuestionsAsync(
-                    post.getId(), image.getPrivateUrl(), userDescription
-                );
+                        post.getId(), image.getPrivateUrl(), userDescription);
             } catch (RuntimeException exception) {
                 log.warn("Failed to schedule AI question generation for post {}: {}",
-                    post.getId(), exception.getMessage());
+                        post.getId(), exception.getMessage());
             }
         }
     }
+
     private String resizeAndEncodeBase64(MultipartFile image) {
         try {
             java.awt.image.BufferedImage originalImage = javax.imageio.ImageIO.read(image.getInputStream());
@@ -470,8 +512,7 @@ public class PostServiceImpl implements PostService {
             }
 
             java.awt.image.BufferedImage resizedImage = new java.awt.image.BufferedImage(
-                newWidth, newHeight, java.awt.image.BufferedImage.TYPE_INT_RGB
-            );
+                    newWidth, newHeight, java.awt.image.BufferedImage.TYPE_INT_RGB);
             java.awt.Graphics2D g = resizedImage.createGraphics();
             g.drawImage(originalImage, 0, 0, newWidth, newHeight, null);
             g.dispose();
@@ -496,23 +537,24 @@ public class PostServiceImpl implements PostService {
         if (image == null || image.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Image is required to generate questions");
         }
-        
+
         // 1. Upload to Cloudinary to get final imageUrl
         String imageUrl = imageStorageService.upload(image);
-        
+
         // 2. Convert and resize image directly to base64
         String base64Image = resizeAndEncodeBase64(image);
         if (base64Image == null) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to read image bytes");
         }
-        
+
         // 3. Generate questions using base64 directly
-        Optional<OllamaQuestionsResponse> suggestionsOpt = imageAnalysisService.generateQuestions(base64Image, description);
-        
+        Optional<OllamaQuestionsResponse> suggestionsOpt = imageAnalysisService.generateQuestions(base64Image,
+                description);
+
         List<OllamaQuestionsResponse.OllamaQuestion> questions = suggestionsOpt
                 .map(OllamaQuestionsResponse::questions)
                 .orElse(List.of());
-        
+
         return new QuestionSuggestionResponse(imageUrl, questions);
     }
 
@@ -521,25 +563,25 @@ public class PostServiceImpl implements PostService {
         if (image == null || image.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Image is required to generate description");
         }
-        
+
         // 1. Upload to Cloudinary to get final imageUrl
         String imageUrl = imageStorageService.upload(image);
-        
+
         // 2. Convert and resize image directly to base64
         String base64Image = resizeAndEncodeBase64(image);
         if (base64Image == null) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to read image bytes");
         }
-        
+
         // 3. Analyze image using base64 directly
         Optional<OllamaTags> tagsOpt = imageAnalysisService.analyzeImage(base64Image, description);
-        
+
         if (tagsOpt.isEmpty()) {
             throw new ResponseStatusException(
-                HttpStatus.SERVICE_UNAVAILABLE,
-                "AI could not generate a description from the image. Please try again or write it manually.");
+                    HttpStatus.SERVICE_UNAVAILABLE,
+                    "AI could not generate a description from the image. Please try again or write it manually.");
         }
-        
+
         OllamaTags tags = tagsOpt.get();
         return new GenerateDescriptionResponse(imageUrl, tags.description(), tags.tags());
     }

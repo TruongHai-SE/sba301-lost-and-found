@@ -15,22 +15,22 @@ import java.time.LocalDateTime;
  * - Có location chi tiết (street, district, city)
  */
 public record FullPostDetails(
-        @JsonProperty("post_id") Long postId,
-        @JsonProperty("title") String title,
-        @JsonProperty("description") String description,
-        @JsonProperty("image_url") String imageUrl,
-        @JsonProperty("type") String type,
-        @JsonProperty("hide_post_type") String hidePostType,
-        @JsonProperty("event_time") LocalDateTime eventTime,
-        @JsonProperty("status") String status,
-        @JsonProperty("created_at") LocalDateTime createdAt,
-        @JsonProperty("location") LocationInfo location,
-        @JsonProperty("owner") OwnerInfo owner,
-        @JsonProperty("verification_score") Double verificationScore) {
-    public record OwnerInfo(
-            @JsonProperty("user_id") Long userId,
-            @JsonProperty("full_name") String fullName,
-            @JsonProperty("phone") String phone,
-            @JsonProperty("email") String email) {
-    }
+                @JsonProperty("post_id") Long postId,
+                @JsonProperty("title") String title,
+                @JsonProperty("description") String description,
+                @JsonProperty("image_url") String imageUrl,
+                @JsonProperty("type") String type,
+                @JsonProperty("hide_post_type") String hidePostType,
+                @JsonProperty("event_time") LocalDateTime eventTime,
+                @JsonProperty("status") String status,
+                @JsonProperty("created_at") LocalDateTime createdAt,
+                @JsonProperty("location") LocationInfo location,
+                @JsonProperty("owner") OwnerInfo owner,
+                @JsonProperty("verification_score") Double verificationScore) {
+        public record OwnerInfo(
+                        @JsonProperty("user_id") Long userId,
+                        @JsonProperty("full_name") String fullName,
+                        @JsonProperty("phone") String phone,
+                        @JsonProperty("email") String email) {
+        }
 }

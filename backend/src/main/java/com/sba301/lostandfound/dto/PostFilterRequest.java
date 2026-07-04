@@ -13,9 +13,21 @@ import org.springframework.format.annotation.DateTimeFormat;
 @NoArgsConstructor
 @AllArgsConstructor
 public class PostFilterRequest {
-    
-    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+
     private LocalDate date;
+
+    // Chặn luồng set dữ liệu từ Spring Boot và tự xử lý
+    public void setDate(String dateStr) {
+        if (dateStr != null && !dateStr.isEmpty()) {
+            // Nếu chuỗi chứa chữ T, cắt lấy phần trước chữ T
+            if (dateStr.contains("T")) {
+                dateStr = dateStr.split("T")[0];
+            }
+            this.date = LocalDate.parse(dateStr);
+        }
+    }
+
+
     
     @DateTimeFormat(iso = DateTimeFormat.ISO.TIME)
     private LocalTime time;

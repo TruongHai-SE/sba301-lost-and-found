@@ -6,16 +6,16 @@ CREATE SCHEMA IF NOT EXISTS extensions;
 
 DO $$
 DECLARE
-    v_current_schema text;
+    current_schema text;
 BEGIN
-    SELECT n.nspname INTO v_current_schema
+    SELECT n.nspname INTO current_schema
     FROM pg_extension e 
     JOIN pg_namespace n ON e.extnamespace = n.oid 
     WHERE e.extname = 'vector';
 
-    IF v_current_schema IS NULL THEN
+    IF current_schema IS NULL THEN
         CREATE EXTENSION vector SCHEMA extensions;
-    ELSIF v_current_schema <> 'extensions' THEN
+    ELSIF current_schema <> 'extensions' THEN
         ALTER EXTENSION vector SET SCHEMA extensions;
     END IF;
 END

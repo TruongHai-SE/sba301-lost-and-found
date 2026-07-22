@@ -13,6 +13,7 @@ import com.sba301.lostandfound.entity.Post;
 import com.sba301.lostandfound.entity.StockImage;
 import com.sba301.lostandfound.entity.User;
 import com.sba301.lostandfound.entity.Verification;
+import com.sba301.lostandfound.entity.enums.Category;
 import com.sba301.lostandfound.entity.enums.HidePostType;
 import com.sba301.lostandfound.entity.enums.PostStatus;
 import com.sba301.lostandfound.entity.enums.PostType;
@@ -106,8 +107,11 @@ public class PostServiceImpl implements PostService {
 
         if (isStockImage) {
             image = resolveStockImage(request.getStockImageId());
+        } else if (request.hasImage()) {
+            image = uploadAndSaveImage(request);
         } else {
-            image = request.hasImage() ? uploadAndSaveImage(request) : null;
+            image = resolveCategoryStockImage(request.getCategory());
+            isStockImage = (image != null);
         }
 
         HidePostType hidePostType = request.getHidePostType() == null ? HidePostType.PUBLIC : request.getHidePostType();
@@ -185,8 +189,11 @@ public class PostServiceImpl implements PostService {
         Image image;
         if (isStockImage) {
             image = resolveStockImage(request.getStockImageId());
+        } else if (request.hasImage()) {
+            image = uploadAndSaveImageForFound(request);
         } else {
-            image = request.hasImage() ? uploadAndSaveImageForFound(request) : null;
+            image = resolveCategoryStockImage(request.getCategory());
+            isStockImage = (image != null);
         }
 
         HidePostType hidePostType = request.getHidePostType() == null ? HidePostType.PUBLIC : request.getHidePostType();
@@ -420,6 +427,28 @@ public class PostServiceImpl implements PostService {
         StockImage stockImage = stockImageRepository.findById(stockImageId)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "Stock image not found: " + stockImageId));
+        return imageRepository.save(Image.builder()
+                .url(stockImage.getImageUrl())
+                .privateUrl(stockImage.getImageUrl())
+                .createdAt(LocalDateTime.now())
+                .build());
+    }
+
+    /**
+     * Tự động lấy ảnh mẫu mặc định dựa trên Category khi người dùng không chọn ảnh.
+     */
+    private Image resolveCategoryStockImage(Category category) {
+        if (category == null) {
+            category = Category.OTHER;
+        }
+        List<StockImage> stockImages = stockImageRepository.findByCategory(category);
+        if (stockImages.isEmpty()) {
+            stockImages = stockImageRepository.findByCategory(Category.OTHER);
+        }
+        if (stockImages.isEmpty()) {
+            return null;
+        }
+        StockImage stockImage = stockImages.get(0);
         return imageRepository.save(Image.builder()
                 .url(stockImage.getImageUrl())
                 .privateUrl(stockImage.getImageUrl())

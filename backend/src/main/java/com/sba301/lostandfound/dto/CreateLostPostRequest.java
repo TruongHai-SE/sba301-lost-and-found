@@ -25,6 +25,7 @@ public class CreateLostPostRequest {
 
     private String description;
 
+    @jakarta.validation.constraints.NotNull(message = "Category is required")
     private Category category;
 
     private List<String> tags;

@@ -62,7 +62,8 @@ public class SecurityConfig {
                     "/api/v1/posts/all",
                     "/api/v1/posts/all/**",
                     "/api/v1/posts/search",
-                    "/api/v1/posts/search/**"
+                    "/api/v1/posts/search/**",
+                    "/api/v1/stock-images/**"
                 ).permitAll()
 
                 // 2.1 Public GET for post details and verification questions

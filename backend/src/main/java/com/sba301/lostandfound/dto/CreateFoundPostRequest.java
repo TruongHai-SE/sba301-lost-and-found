@@ -14,6 +14,8 @@ import java.util.List;
  * có getter/setter để Spring bind qua @ModelAttribute. Các field location và image
  * đều tùy chọn.
  */
+import com.sba301.lostandfound.entity.enums.Category;
+
 @Getter
 @Setter
 public class CreateFoundPostRequest {
@@ -22,6 +24,10 @@ public class CreateFoundPostRequest {
     private String title;
 
     private String description;
+
+    private Category category;
+
+    private List<String> tags;
 
     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
     private LocalDateTime eventTime;
@@ -50,6 +56,12 @@ public class CreateFoundPostRequest {
 
     private String imageUrl;
 
+    /**
+     * ID của ảnh mẫu (stock image) từ bảng stock_images.
+     * Nếu có giá trị, sẽ dùng URL ảnh mẫu thay vì upload ảnh thật.
+     */
+    private Long stockImageId;
+
     private List<VerificationQuestionRequest> verifications;
 
     public boolean hasLocation() {
@@ -58,6 +70,8 @@ public class CreateFoundPostRequest {
     }
 
     public boolean hasImage() {
-        return (image != null && !image.isEmpty()) || (imageUrl != null && !imageUrl.isBlank());
+        return (image != null && !image.isEmpty())
+            || (imageUrl != null && !imageUrl.isBlank())
+            || stockImageId != null;
     }
 }

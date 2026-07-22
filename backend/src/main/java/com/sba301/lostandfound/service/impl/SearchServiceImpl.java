@@ -73,8 +73,46 @@ public class SearchServiceImpl implements SearchService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Image is required for image search");
         }
-        String imageUrl = imageStorageService.upload(image);
-        return doSearch(imageUrl, description, topK, targetType, "IMAGE");
+        int k = clampTopK(topK);
+        String type = normalizeTargetType(targetType);
+
+        ClipEmbedResponse response;
+        try {
+            response = clipClient.searchByImageBytes(image, type, k);
+        } catch (RuntimeException exception) {
+            log.warn("CLIP searchByImageBytes failed: {}", exception.getMessage());
+            return new SearchResponse("IMAGE", 0, List.of());
+        }
+
+        if (response == null || response.matches() == null || response.matches().isEmpty()) {
+            return new SearchResponse("IMAGE", 0, List.of());
+        }
+
+        List<Long> postIds = response.matches().stream()
+                .map(ClipMatch::postId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+
+        List<Post> posts = postIds.isEmpty() ? List.of() : postRepository.findAllByIdIn(postIds);
+
+        Map<Long, Post> postMap = posts.stream()
+                .collect(Collectors.toMap(Post::getId, Function.identity()));
+
+        List<BlurredPostSummary> results = new ArrayList<>();
+        for (ClipMatch match : response.matches()) {
+            if (match.postId() == null)
+                continue;
+            if (match.score() != null && match.score() < 0.5)
+                continue;
+            Post post = postMap.get(match.postId());
+            if (post == null)
+                continue;
+            results.add(postMapper.toBlurredSummary(post, match));
+        }
+
+        log.info("Search [IMAGE] target={} returned {} results", type, results.size());
+        return new SearchResponse("IMAGE", results.size(), results);
     }
 
     @Override

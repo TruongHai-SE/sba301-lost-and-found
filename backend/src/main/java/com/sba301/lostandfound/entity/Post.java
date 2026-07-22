@@ -22,6 +22,11 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import com.sba301.lostandfound.entity.enums.Category;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+import java.util.List;
+
 @Entity
 @Table(name = "posts")
 @Getter
@@ -54,6 +59,14 @@ public class Post {
     private String description;
 
     @Enumerated(EnumType.STRING)
+    @Column(length = 30)
+    private Category category;
+
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    @Column(name = "tags")
+    private List<String> tags;
+
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 5)
     private PostType type;
 
@@ -73,4 +86,8 @@ public class Post {
 
     @Column(name = "delete_at")
     private LocalDateTime deleteAt;
+
+    @Builder.Default
+    @Column(name = "is_stock_image")
+    private Boolean isStockImage = false;
 }

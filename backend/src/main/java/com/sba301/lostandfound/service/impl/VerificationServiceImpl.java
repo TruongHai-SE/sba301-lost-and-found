@@ -229,6 +229,8 @@ public class VerificationServiceImpl implements VerificationService {
             post.getTitle(),
             post.getDescription(),
             imageUrl,
+            post.getCategory() != null ? post.getCategory().name() : null,
+            post.getTags(),
             post.getType() == null ? null : post.getType().name(),
             post.getHidePostType() == null ? null : post.getHidePostType().name(),
             post.getEventTime(),
@@ -236,7 +238,8 @@ public class VerificationServiceImpl implements VerificationService {
             post.getCreatedAt(),
             LocationInfo.from(post.getLocation()),
             owner,
-            verificationScore
+            verificationScore,
+            Boolean.TRUE.equals(post.getIsStockImage())
         );
     }
 }

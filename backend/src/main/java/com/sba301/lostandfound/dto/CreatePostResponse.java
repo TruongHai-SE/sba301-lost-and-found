@@ -34,6 +34,7 @@ public class CreatePostResponse {
     private final Long userId;
     private final LocationInfo location;
     private final List<ClipMatch> matches;
+    private final Boolean isStockImage;
 
     /**
      * Câu hỏi xác minh do AI sinh ra từ ảnh (Approach 1).
@@ -63,6 +64,7 @@ public class CreatePostResponse {
             .location(LocationInfo.from(post.getLocation()))
             .matches(matches == null ? List.of() : matches)
             .verificationQuestions(List.of())
+            .isStockImage(Boolean.TRUE.equals(post.getIsStockImage()))
             .build();
     }
 

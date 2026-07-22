@@ -36,16 +36,24 @@ public class PostMapper {
      * @param score    match score từ CLIP (optional, có thể null)
      */
     public BlurredPostSummary toBlurredSummary(Post post, Double score) {
+        boolean stockImage = Boolean.TRUE.equals(post.getIsStockImage());
         String blurredUrl = null;
         if (post.getImage() != null) {
-            boolean isLost = post.getType() == PostType.LOST;
-            if (post.getImage().getPrivateUrl() != null && !post.getImage().getPrivateUrl().isBlank()) {
-                blurredUrl = isLost ? post.getImage().getPrivateUrl() : post.getImage().getUrl();
+            if (stockImage) {
+                // Stock images: always show clear (no blur, they are generic placeholders)
+                blurredUrl = post.getImage().getPrivateUrl() != null
+                        ? post.getImage().getPrivateUrl()
+                        : post.getImage().getUrl();
             } else {
-                String originalUrl = post.getImage().getUrl();
-                blurredUrl = isLost ? originalUrl : imageBlurringService.blur(originalUrl);
-                if (blurredUrl == null) {
-                    blurredUrl = originalUrl;
+                boolean isLost = post.getType() == PostType.LOST;
+                if (post.getImage().getPrivateUrl() != null && !post.getImage().getPrivateUrl().isBlank()) {
+                    blurredUrl = isLost ? post.getImage().getPrivateUrl() : post.getImage().getUrl();
+                } else {
+                    String originalUrl = post.getImage().getUrl();
+                    blurredUrl = isLost ? originalUrl : imageBlurringService.blur(originalUrl);
+                    if (blurredUrl == null) {
+                        blurredUrl = originalUrl;
+                    }
                 }
             }
         }
@@ -62,7 +70,8 @@ public class PostMapper {
             LocationInfo.from(post.getLocation()),
             score,
             questions,
-            !questions.isEmpty()
+            !questions.isEmpty(),
+            stockImage
         );
     }
 
@@ -146,11 +155,12 @@ public class PostMapper {
         // 1. Logic xử lý hiển thị ảnh theo hidePostType
         boolean isPublic = post.getHidePostType() == null
                 || post.getHidePostType() == HidePostType.PUBLIC;
+        boolean stockImage = Boolean.TRUE.equals(post.getIsStockImage());
 
         String imageUrl = null;
         if (post.getImage() != null) {
-            if (isPublic) {
-                // hidePostType = PUBLIC: Trả ảnh RÕ
+            if (stockImage || isPublic) {
+                // Stock images OR hidePostType = PUBLIC: Trả ảnh RÕ
                 imageUrl = (post.getImage().getPrivateUrl() != null && !post.getImage().getPrivateUrl().isBlank())
                         ? post.getImage().getPrivateUrl()
                         : post.getImage().getUrl();
@@ -191,6 +201,8 @@ public class PostMapper {
                 post.getTitle(),
                 post.getDescription(),
                 imageUrl,
+                post.getCategory() != null ? post.getCategory().name() : null,
+                post.getTags(),
                 post.getType() == null ? null : post.getType().name(),
                 post.getHidePostType() == null ? null : post.getHidePostType().name(),
                 post.getEventTime(),
@@ -198,7 +210,8 @@ public class PostMapper {
                 post.getCreatedAt(),
                 LocationInfo.from(post.getLocation()),
                 owner,
-                verificationScore
+                verificationScore,
+                stockImage
         );
     }
 }

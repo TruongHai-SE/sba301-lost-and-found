@@ -10,6 +10,7 @@ import com.sba301.lostandfound.entity.VerificationAnswer;
 import com.sba301.lostandfound.entity.Image;
 import com.sba301.lostandfound.entity.Location;
 import com.sba301.lostandfound.entity.Post;
+import com.sba301.lostandfound.entity.StockImage;
 import com.sba301.lostandfound.entity.User;
 import com.sba301.lostandfound.entity.Verification;
 import com.sba301.lostandfound.entity.enums.HidePostType;
@@ -20,16 +21,15 @@ import com.sba301.lostandfound.repository.VerificationAnswerRepository;
 import com.sba301.lostandfound.repository.ImageRepository;
 import com.sba301.lostandfound.repository.LocationRepository;
 import com.sba301.lostandfound.repository.PostRepository;
+import com.sba301.lostandfound.repository.StockImageRepository;
 import com.sba301.lostandfound.repository.UserRepository;
 import com.sba301.lostandfound.repository.VerificationRepository;
 import com.sba301.lostandfound.service.ImageStorageService;
 import com.sba301.lostandfound.service.PostService;
 import com.sba301.lostandfound.service.PostAiEnrichmentService;
 import com.sba301.lostandfound.service.ImageAnalysisService;
-import com.sba301.lostandfound.service.impl.ImageBlurringService;
 import org.springframework.web.multipart.MultipartFile;
 import java.util.Optional;
-import com.sba301.lostandfound.dto.PostFilterRequest;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -65,6 +65,7 @@ public class PostServiceImpl implements PostService {
     private final PostAiEnrichmentService postAiEnrichmentService;
     private final ImageBlurringService imageBlurringService;
     private final PostMapper postMapper;
+    private final StockImageRepository stockImageRepository;
 
     public PostServiceImpl(
             UserRepository userRepository,
@@ -78,7 +79,8 @@ public class PostServiceImpl implements PostService {
             VerificationAnswerRepository verificationAnswerRepository,
             PostAiEnrichmentService postAiEnrichmentService,
             ImageBlurringService imageBlurringService,
-            PostMapper postMapper) {
+            PostMapper postMapper,
+            StockImageRepository stockImageRepository) {
         this.userRepository = userRepository;
         this.locationRepository = locationRepository;
         this.imageRepository = imageRepository;
@@ -91,15 +93,36 @@ public class PostServiceImpl implements PostService {
         this.postAiEnrichmentService = postAiEnrichmentService;
         this.imageBlurringService = imageBlurringService;
         this.postMapper = postMapper;
+        this.stockImageRepository = stockImageRepository;
     }
 
     @Override
     public CreatePostResponse createLostPost(CreateLostPostRequest request) {
         User user = resolveUser(request.getUserId());
         Location location = request.hasLocation() ? saveLocation(request) : null;
-        Image image = request.hasImage() ? uploadAndSaveImage(request) : null;
+
+        boolean isStockImage = request.getStockImageId() != null;
+        Image image;
+
+        if (isStockImage) {
+            image = resolveStockImage(request.getStockImageId());
+        } else {
+            image = request.hasImage() ? uploadAndSaveImage(request) : null;
+        }
 
         HidePostType hidePostType = request.getHidePostType() == null ? HidePostType.PUBLIC : request.getHidePostType();
+
+        // Pre-validation: Skip for stock images (generic placeholder, no need to validate)
+        if (!isStockImage && request.hasImage()) {
+            ImageValidationResponse validation = clipClient.validateImage(
+                request.getImage(),
+                request.getImageUrl(),
+                request.getTitle()
+            );
+            if (validation != null && !validation.isValid()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, validation.message());
+            }
+        }
 
         Post post = postRepository.save(Post.builder()
                 .user(user)
@@ -107,11 +130,14 @@ public class PostServiceImpl implements PostService {
                 .image(image)
                 .title(request.getTitle())
                 .description(request.getDescription())
+                .category(request.getCategory())
+                .tags(request.getTags())
                 .type(PostType.LOST)
                 .eventTime(request.getEventTime())
                 .createdAt(LocalDateTime.now())
                 .status(PostStatus.ACTIVE)
                 .hidePostType(hidePostType)
+                .isStockImage(isStockImage)
                 .build());
 
         triggerAiEnrichment(post, image, request.getDescription(), null);
@@ -139,9 +165,29 @@ public class PostServiceImpl implements PostService {
                             .build()));
         }
 
-        // 2. Lưu vị trí và hình ảnh lên Cloudinary
+        boolean isStockImage = request.getStockImageId() != null;
+
+        // 2. Lưu vị trí và hình ảnh
         Location location = request.hasLocation() ? saveLocationForFound(request) : null;
-        Image image = request.hasImage() ? uploadAndSaveImageForFound(request) : null;
+
+        // Pre-validation: Skip for stock images (generic placeholder, no need to validate)
+        if (!isStockImage && request.hasImage()) {
+            ImageValidationResponse validation = clipClient.validateImage(
+                request.getImage(),
+                request.getImageUrl(),
+                request.getTitle()
+            );
+            if (validation != null && !validation.isValid()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, validation.message());
+            }
+        }
+
+        Image image;
+        if (isStockImage) {
+            image = resolveStockImage(request.getStockImageId());
+        } else {
+            image = request.hasImage() ? uploadAndSaveImageForFound(request) : null;
+        }
 
         HidePostType hidePostType = request.getHidePostType() == null ? HidePostType.PUBLIC : request.getHidePostType();
 
@@ -152,11 +198,14 @@ public class PostServiceImpl implements PostService {
                 .image(image)
                 .title(request.getTitle())
                 .description(request.getDescription())
-                .type(PostType.FOUND) // Xác định loại bài đăng nhặt được đồ
+                .category(request.getCategory())
+                .tags(request.getTags())
+                .type(PostType.FOUND)
                 .eventTime(request.getEventTime())
                 .createdAt(LocalDateTime.now())
                 .status(PostStatus.ACTIVE)
                 .hidePostType(hidePostType)
+                .isStockImage(isStockImage)
                 .build());
 
         // 4. Lưu dữ liệu bộ câu hỏi bảo mật động và đáp án gốc
@@ -179,8 +228,7 @@ public class PostServiceImpl implements PostService {
 
         triggerAiEnrichment(post, image, request.getDescription(), request.getCustomQuestionsJson());
 
-        // 5. Đồng bộ Vector hóa thông qua CLIP Service và tìm kiếm chéo các bài LOST
-        // tương đồng
+        // 5. Đồng bộ Vector hóa thông qua CLIP Service và tìm kiếm chéo các bài LOST tương đồng
         List<ClipMatch> matches = runClipMatchingForFound(post, image, request.getDescription());
 
         return CreatePostResponse.from(post, matches);
@@ -365,22 +413,39 @@ public class PostServiceImpl implements PostService {
     }
 
     /**
+     * Tạo Image record từ stock image URL. Không upload lên Cloudinary,
+     * không blur (vì ảnh mẫu generic, hiển thị rõ luôn).
+     */
+    private Image resolveStockImage(Long stockImageId) {
+        StockImage stockImage = stockImageRepository.findById(stockImageId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Stock image not found: " + stockImageId));
+        return imageRepository.save(Image.builder()
+                .url(stockImage.getImageUrl())
+                .privateUrl(stockImage.getImageUrl())
+                .createdAt(LocalDateTime.now())
+                .build());
+    }
+
+    /**
      * Gọi CLIP service để tạo embedding và tìm các tin FOUND có khả năng khớp.
      * Nếu CLIP lỗi/không khả dụng thì vẫn giữ post đã lưu và trả về danh sách rỗng.
+     * Stock image posts: chỉ embed text, KHÔNG embed image.
      */
     private List<ClipMatch> runClipMatching(Post post, Image image, String description) {
         try {
             ClipEmbedResponse response;
-            if (image != null) {
+            String text = buildText(post);
+            boolean stockImage = Boolean.TRUE.equals(post.getIsStockImage());
+
+            if (image != null && !stockImage) {
                 response = clipClient.embedImage(post.getId(), image.getPrivateUrl(), image.getId(), LOST);
                 try {
-                    String text = buildText(post.getTitle(), description);
                     clipClient.embedText(post.getId(), text, LOST);
                 } catch (Exception e) {
                     log.warn("Failed to index text embedding for post with image {}: {}", post.getId(), e.getMessage());
                 }
             } else {
-                String text = buildText(post.getTitle(), description);
                 response = clipClient.embedText(post.getId(), text, LOST);
             }
             if (response == null || response.matches() == null) {
@@ -393,11 +458,23 @@ public class PostServiceImpl implements PostService {
         }
     }
 
-    private String buildText(String title, String description) {
-        if (description == null || description.isBlank()) {
-            return title;
+    private String buildText(Post post) {
+        if (post == null) {
+            return "";
         }
-        return title + ". " + description;
+        StringBuilder sb = new StringBuilder();
+        if (post.getTitle() != null && !post.getTitle().isBlank()) {
+            sb.append(post.getTitle());
+        }
+        if (post.getCategory() != null) {
+            if (sb.length() > 0) sb.append(". Danh mục: ");
+            sb.append(post.getCategory().name());
+        }
+        if (post.getTags() != null && !post.getTags().isEmpty()) {
+            if (sb.length() > 0) sb.append(". Từ khóa: ");
+            sb.append(String.join(", ", post.getTags()));
+        }
+        return sb.toString();
     }
 
     private List<ClipMatch> enrichClipMatches(List<ClipMatch> matches) {
@@ -420,17 +497,18 @@ public class PostServiceImpl implements PostService {
     private List<ClipMatch> runClipMatchingForFound(Post post, Image image, String description) {
         try {
             ClipEmbedResponse response;
-            if (image != null) {
+            String text = buildText(post);
+            boolean stockImage = Boolean.TRUE.equals(post.getIsStockImage());
+
+            if (image != null && !stockImage) {
                 response = clipClient.embedImage(post.getId(), image.getPrivateUrl(), image.getId(), "FOUND");
                 try {
-                    String text = post.getTitle() + (description != null ? ". " + description : "");
                     clipClient.embedText(post.getId(), text, "FOUND");
                 } catch (Exception e) {
                     log.warn("Failed to index text embedding for found post with image {}: {}", post.getId(),
                             e.getMessage());
                 }
             } else {
-                String text = post.getTitle() + (description != null ? ". " + description : "");
                 response = clipClient.embedText(post.getId(), text, "FOUND");
             }
             if (response == null || response.matches() == null) {
@@ -471,6 +549,11 @@ public class PostServiceImpl implements PostService {
 
     private void triggerAiEnrichment(Post post, Image image, String userDescription, String customQuestionsJson) {
         if (image == null) {
+            return;
+        }
+
+        // Stock images are generic placeholders — skip AI question generation
+        if (Boolean.TRUE.equals(post.getIsStockImage())) {
             return;
         }
 

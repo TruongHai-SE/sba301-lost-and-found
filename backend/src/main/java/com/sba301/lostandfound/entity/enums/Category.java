@@ -1,7 +1,8 @@
 package com.sba301.lostandfound.entity.enums;
 
 public enum Category {
-    WALLET_BAG,
+    WALLET,
+    BAG_BACKPACK,
     DOCS_CARDS,
     ELECTRONICS,
     KEYS,

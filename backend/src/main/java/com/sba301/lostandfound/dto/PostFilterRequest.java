@@ -8,6 +8,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 
+import com.sba301.lostandfound.entity.enums.Category;
+
 @Data
 @Builder
 @NoArgsConstructor
@@ -27,10 +29,12 @@ public class PostFilterRequest {
         }
     }
 
-
-    
     @DateTimeFormat(iso = DateTimeFormat.ISO.TIME)
     private LocalTime time;
     
     private String district;
+
+    private Category category;
+
+    private String tag;
 }

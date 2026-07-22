@@ -22,6 +22,7 @@ public record BlurredPostSummary(
     @JsonProperty("location") LocationInfo location,
     @JsonProperty("match_score") Double matchScore,
     @JsonProperty("verification_questions") List<VerificationQuestion> verificationQuestions,
-    @JsonProperty("has_verification") Boolean hasVerification
+    @JsonProperty("has_verification") Boolean hasVerification,
+    @JsonProperty("is_stock_image") Boolean isStockImage
 ) {
 }

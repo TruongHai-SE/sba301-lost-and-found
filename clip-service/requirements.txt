@@ -1,6 +1,7 @@
 # CLIP Service - Lost & Found
 fastapi>=0.115.0
 uvicorn[standard]>=0.30.0
+python-multipart>=0.0.9
 pydantic-settings>=2.4.0
 python-dotenv>=1.0.1
 

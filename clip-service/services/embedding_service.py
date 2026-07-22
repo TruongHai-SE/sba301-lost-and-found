@@ -117,6 +117,97 @@ class EmbeddingService:
 
         return self._match(vec, target_post_type=target_post_type, query_type=query_type, top_k=top_k, threshold=threshold, query_text=q_text)
 
+    def search_by_image_bytes(
+        self,
+        image_bytes: bytes,
+        target_post_type: str = "ALL",
+        top_k: int = 10,
+        threshold: float | None = None,
+    ) -> list[dict]:
+        """Directly search by raw image bytes (RAM processing)."""
+        img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+        cropped = self.yolo.crop_main_object(img)
+        vec = self.clip.encode_image(cropped)
+        return self._match(vec, target_post_type=target_post_type, query_type="IMAGE", top_k=top_k, threshold=threshold)
+
+    def validate_image_and_consistency(
+        self,
+        image_bytes: bytes | None = None,
+        image_url: str | None = None,
+        title: str | None = None,
+        tags: list[str] | None = None,
+    ) -> dict:
+        """Validate if image is junk (selfie, screenshot, blank) and check Title-Image consistency."""
+        if image_bytes:
+            img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+        elif image_url:
+            img = self._download_image(image_url)
+        else:
+            return {"is_valid": False, "reason_code": "NO_IMAGE", "message": "Không tìm thấy hình ảnh."}
+
+        # 0. Check for solid color / blank image via pixel variance
+        img_np = np.array(img)
+        if float(img_np.std()) < 10.0:
+            return {
+                "is_valid": False,
+                "reason_code": "BLANK",
+                "message": "Hình ảnh quá mờ hoặc không có vật thể rõ ràng. Vui lòng chọn ảnh chụp rõ nét hơn."
+            }
+
+        # 1. Zero-shot prompts comparison
+        img_vec = self.clip.encode_image(img)
+        
+        forbidden_prompts = [
+            ("SELFIE", "a selfie or close-up portrait of a person's face"),
+            ("PEOPLE", "a photo of people or group of friends"),
+            ("SCREENSHOT", "a screenshot of a phone screen, banking app, or text chat"),
+            ("MEME", "an internet meme, text graphic, or cartoon"),
+            ("BLANK", "a blank, black, white, or extremely blurry out of focus picture"),
+        ]
+
+        allowed_prompt = "a photo of a physical lost or found object like a wallet, bag, card, phone, key, or pet"
+        allowed_vec = self.clip.encode_text(allowed_prompt, translate=False)
+
+        allowed_score = float(np.dot(img_vec, allowed_vec))
+
+        highest_forbidden_score = -1.0
+        matched_reason = None
+
+        for code, prompt in forbidden_prompts:
+            p_vec = self.clip.encode_text(prompt, translate=False)
+            score = float(np.dot(img_vec, p_vec))
+            if score > highest_forbidden_score:
+                highest_forbidden_score = score
+                matched_reason = code
+
+        # Run YOLO to check object presence
+        cropped = self.yolo.crop_main_object(img)
+        yolo_found_object = cropped.size != img.size
+
+        if highest_forbidden_score > 0.70 and highest_forbidden_score > allowed_score and not yolo_found_object:
+            messages = {
+                "SELFIE": "Hình ảnh chứa chủ yếu mặt người/ảnh chân dung. Vui lòng chọn ảnh chụp rõ đồ vật (Ví, Balo, Giấy tờ...).",
+                "PEOPLE": "Hình ảnh chứa mặt người hoặc nhóm người. Vui lòng chọn ảnh chụp rõ món đồ bị mất hoặc nhặt được.",
+                "SCREENSHOT": "Hình ảnh là ảnh chụp màn hình/mã QR/ảnh chữ. Vui lòng chọn ảnh chụp món đồ thực tế.",
+                "MEME": "Hình ảnh là ảnh minh họa/meme/ảnh chữ. Vui lòng chọn ảnh chụp món đồ thực tế.",
+                "BLANK": "Hình ảnh quá mờ hoặc không có vật thể rõ ràng. Vui lòng chọn ảnh chụp rõ nét hơn.",
+            }
+            msg = messages.get(matched_reason, "Hình ảnh không chứa vật thể tìm kiếm phù hợp. Vui lòng chọn ảnh khác.")
+            return {"is_valid": False, "reason_code": matched_reason, "message": msg}
+
+        # 2. Check title-image consistency if title is provided
+        if title and title.strip():
+            title_vec = self.clip.encode_text(title, translate=True)
+            cosine = float(np.dot(img_vec, title_vec))
+            if cosine < 0.15:
+                return {
+                    "is_valid": False,
+                    "reason_code": "TITLE_MISMATCH",
+                    "message": "Tiêu đề và hình ảnh không khớp nhau. Vui lòng kiểm tra lại thông tin trước khi đăng."
+                }
+
+        return {"is_valid": True, "reason_code": "OK", "message": "Hình ảnh hợp lệ."}
+
     def delete_post_embeddings(self, post_id: int) -> int:
         return self.store.delete_by_post(post_id)
 

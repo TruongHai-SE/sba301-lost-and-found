@@ -58,6 +58,17 @@ public class PostSpecification {
                             filter.getTime().getHour()
                     ));
                 }
+
+                if (filter.getCategory() != null) {
+                    predicates.add(cb.equal(root.get("category"), filter.getCategory()));
+                }
+
+                if (filter.getTag() != null && !filter.getTag().trim().isEmpty()) {
+                    String tagLiteral = filter.getTag().trim().toLowerCase();
+                    predicates.add(cb.isNotNull(
+                            cb.function("array_position", Integer.class, root.get("tags"), cb.literal(tagLiteral))
+                    ));
+                }
             }
 
             return cb.and(predicates.toArray(new Predicate[0]));

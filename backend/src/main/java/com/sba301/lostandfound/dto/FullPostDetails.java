@@ -19,6 +19,8 @@ public record FullPostDetails(
                 @JsonProperty("title") String title,
                 @JsonProperty("description") String description,
                 @JsonProperty("image_url") String imageUrl,
+                @JsonProperty("category") String category,
+                @JsonProperty("tags") java.util.List<String> tags,
                 @JsonProperty("type") String type,
                 @JsonProperty("hide_post_type") String hidePostType,
                 @JsonProperty("event_time") LocalDateTime eventTime,
@@ -26,7 +28,8 @@ public record FullPostDetails(
                 @JsonProperty("created_at") LocalDateTime createdAt,
                 @JsonProperty("location") LocationInfo location,
                 @JsonProperty("owner") OwnerInfo owner,
-                @JsonProperty("verification_score") Double verificationScore) {
+                @JsonProperty("verification_score") Double verificationScore,
+                @JsonProperty("is_stock_image") Boolean isStockImage) {
         public record OwnerInfo(
                         @JsonProperty("user_id") Long userId,
                         @JsonProperty("full_name") String fullName,

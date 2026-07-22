@@ -31,7 +31,11 @@ async def lifespan(app: FastAPI):
     # Warm-up models to eliminate cold start latency for the first request
     try:
         logger.info("[Lifespan] Warming up models (CLIP & Translator)...")
-        svc.clip.encode_text("ấm chén trà", translate=True)
+        # Warm up CLIP with English text (Fully offline, avoids network calls)
+        svc.clip.encode_text("tea set", translate=False)
+        # Warm up Helsinki local translator offline
+        if getattr(svc, "translator", None):
+            svc.translator._local_translate("ấm chén trà")
         logger.info("[Lifespan] Models warmed up successfully!")
     except Exception as e:
         logger.error(f"[Lifespan] Failed to warm up models: {e}")
@@ -162,6 +166,50 @@ async def search(req: SearchRequest):
         )
         return {"results": results, "matches": results}
     except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+from fastapi import UploadFile, File, Form
+
+@app.post("/api/v1/validate-image", dependencies=[Depends(get_api_key)])
+async def validate_image(
+    image: UploadFile | None = File(None),
+    image_url: str | None = Form(None),
+    title: str | None = Form(None),
+):
+    """Validate image against zero-shot junk prompts and check Title-Image consistency."""
+    try:
+        img_bytes = await image.read() if image else None
+        res = svc.validate_image_and_consistency(
+            image_bytes=img_bytes,
+            image_url=image_url,
+            title=title,
+        )
+        return res
+    except Exception as e:
+        logger.error(f"Error in validate_image: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/v1/search/image-bytes", dependencies=[Depends(get_api_key)])
+async def search_by_image_bytes(
+    image: UploadFile = File(...),
+    target_post_type: Literal["LOST", "FOUND", "ALL"] = Form("ALL"),
+    top_k: int = Form(10),
+    threshold: float = Form(0.5),
+):
+    """Directly search by raw image bytes via RAM processing."""
+    try:
+        img_bytes = await image.read()
+        results = svc.search_by_image_bytes(
+            image_bytes=img_bytes,
+            target_post_type=target_post_type,
+            top_k=top_k,
+            threshold=threshold,
+        )
+        return {"results": results, "matches": results}
+    except Exception as e:
+        logger.error(f"Error in search_by_image_bytes: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 

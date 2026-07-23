@@ -2,6 +2,7 @@ package com.sba301.lostandfound.service.impl;
 
 import com.sba301.lostandfound.client.ClipClient;
 import com.sba301.lostandfound.dto.*;
+import com.sba301.lostandfound.util.StringSanitizer;
 
 import java.util.Base64;
 import java.io.IOException;
@@ -132,10 +133,10 @@ public class PostServiceImpl implements PostService {
                 .user(user)
                 .location(location)
                 .image(image)
-                .title(request.getTitle())
-                .description(request.getDescription())
+                .title(StringSanitizer.sanitizeTitle(request.getTitle()))
+                .description(StringSanitizer.sanitizeDescription(request.getDescription()))
                 .category(request.getCategory())
-                .tags(request.getTags())
+                .tags(StringSanitizer.sanitizeTags(request.getTags()))
                 .type(PostType.LOST)
                 .eventTime(request.getEventTime())
                 .createdAt(LocalDateTime.now())
@@ -203,10 +204,10 @@ public class PostServiceImpl implements PostService {
                 .user(user)
                 .location(location)
                 .image(image)
-                .title(request.getTitle())
-                .description(request.getDescription())
+                .title(StringSanitizer.sanitizeTitle(request.getTitle()))
+                .description(StringSanitizer.sanitizeDescription(request.getDescription()))
                 .category(request.getCategory())
-                .tags(request.getTags())
+                .tags(StringSanitizer.sanitizeTags(request.getTags()))
                 .type(PostType.FOUND)
                 .eventTime(request.getEventTime())
                 .createdAt(LocalDateTime.now())
@@ -325,9 +326,12 @@ public class PostServiceImpl implements PostService {
 
             if (request != null) {
                 if (request.getDistrict() != null && !request.getDistrict().trim().isEmpty()) {
-                    predicates.add(cb.like(
-                            cb.lower(root.join("location").get("district")),
-                            "%" + request.getDistrict().trim().toLowerCase() + "%"));
+                    String cleanDistrict = StringSanitizer.sanitizeSearchText(request.getDistrict());
+                    if (!cleanDistrict.isBlank()) {
+                        predicates.add(cb.like(
+                                cb.lower(root.join("location").get("district")),
+                                "%" + cleanDistrict + "%"));
+                    }
                 }
 
                 if (request.getDate() != null && request.getTime() != null) {
@@ -354,10 +358,13 @@ public class PostServiceImpl implements PostService {
                 }
 
                 if (request.getTag() != null && !request.getTag().trim().isEmpty()) {
-                    String tagLiteral = request.getTag().trim().toLowerCase();
-                    predicates.add(cb.isNotNull(
-                            cb.function("array_position", Integer.class, root.get("tags"), cb.literal(tagLiteral))
-                    ));
+                    String cleanTag = StringSanitizer.sanitizeSearchText(request.getTag());
+                    if (!cleanTag.isBlank()) {
+                        predicates.add(cb.like(
+                                cb.lower(cb.function("array_to_string", String.class, root.get("tags"), cb.literal(","))),
+                                "%" + cleanTag + "%"
+                        ));
+                    }
                 }
             }
 
@@ -504,17 +511,38 @@ public class PostServiceImpl implements PostService {
         }
         StringBuilder sb = new StringBuilder();
         if (post.getTitle() != null && !post.getTitle().isBlank()) {
-            sb.append(post.getTitle());
+            sb.append(post.getTitle().trim());
         }
         if (post.getCategory() != null) {
-            if (sb.length() > 0) sb.append(". Danh mục: ");
-            sb.append(post.getCategory().name());
+            String catName = getCategoryDisplayName(post.getCategory());
+            if (!catName.isBlank()) {
+                if (sb.length() > 0) sb.append(", ");
+                sb.append(catName);
+            }
         }
         if (post.getTags() != null && !post.getTags().isEmpty()) {
-            if (sb.length() > 0) sb.append(". Từ khóa: ");
-            sb.append(String.join(", ", post.getTags()));
+            String joinedTags = String.join(", ", post.getTags());
+            if (!joinedTags.isBlank()) {
+                if (sb.length() > 0) sb.append(", ");
+                sb.append(joinedTags);
+            }
         }
-        return sb.toString();
+        return sb.toString().trim();
+    }
+
+    private String getCategoryDisplayName(Category category) {
+        if (category == null) return "";
+        return switch (category) {
+            case WALLET -> "Ví/Bóp";
+            case BAG_BACKPACK -> "Túi/Balo";
+            case DOCS_CARDS -> "Giấy tờ/Thẻ";
+            case ELECTRONICS -> "Đồ điện tử";
+            case KEYS -> "Chìa khóa";
+            case APPAREL_ACC -> "Quần áo/Phụ kiện";
+            case BOOKS_STATIONERY -> "Sách/Sổ/Bút";
+            case PETS -> "Thú cưng";
+            case OTHER -> "Khác";
+        };
     }
 
     private List<ClipMatch> enrichClipMatches(List<ClipMatch> matches) {

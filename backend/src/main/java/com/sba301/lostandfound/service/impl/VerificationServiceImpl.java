@@ -14,6 +14,7 @@ import com.sba301.lostandfound.repository.VerificationAnswerRepository;
 import com.sba301.lostandfound.repository.PostRepository;
 import com.sba301.lostandfound.repository.VerificationRepository;
 import com.sba301.lostandfound.service.VerificationService;
+import com.sba301.lostandfound.util.StringSanitizer;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -184,11 +185,7 @@ public class VerificationServiceImpl implements VerificationService {
     }
 
     private String normalize(String s) {
-        if (s == null) return "";
-        return s.toLowerCase(Locale.ROOT)
-            .replaceAll("[\\p{Punct}]", " ")
-            .replaceAll("\\s+", " ")
-            .trim();
+        return StringSanitizer.sanitizeSearchText(s);
     }
 
     private double jaccardSimilarity(String a, String b) {

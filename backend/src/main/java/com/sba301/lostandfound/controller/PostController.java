@@ -11,6 +11,7 @@ import com.sba301.lostandfound.dto.QuestionSuggestionResponse;
 import com.sba301.lostandfound.dto.GenerateDescriptionResponse;
 import com.sba301.lostandfound.dto.SearchResponse;
 import com.sba301.lostandfound.dto.SearchByTextRequest;
+import com.sba301.lostandfound.dto.UpdatePostRequest;
 import com.sba301.lostandfound.entity.enums.PostStatus;
 import com.sba301.lostandfound.entity.enums.PostType;
 import com.sba301.lostandfound.security.CustomUserDetails;
@@ -171,6 +172,16 @@ public class PostController {
             @PathVariable Long id) {
         FullPostDetails response = postService.getPostById(id);
         return ResponseEntity.ok(ApiResponse.success(response, "Get post details successfully"));
+    }
+
+    @PatchMapping("/{id}")
+    public ResponseEntity<ApiResponse<FullPostDetails>> updatePost(
+            @PathVariable Long id,
+            @AuthenticationPrincipal CustomUserDetails currentUser,
+            @RequestBody UpdatePostRequest request) {
+        Long userId = currentUser.getUser().getId();
+        FullPostDetails response = postService.updatePost(id, userId, request);
+        return ResponseEntity.ok(ApiResponse.success(response, "Update post successfully"));
     }
 
     @PatchMapping("/{id}/status")

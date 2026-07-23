@@ -189,7 +189,7 @@ public class PostServiceImpl implements PostService {
     @Override
     @Transactional(readOnly = true)
     public PageResponse<PostListResponse> getUserPosts(int page, int size, String sortBy, String direction,
-                                                       PostType type, PostStatus status, Long userId) {
+            PostType type, PostStatus status, Long userId) {
         Sort sort = Sort.by(Sort.Direction.fromString(direction), sortBy);
         Pageable pageable = PageRequest.of(page, size, sort);
 
@@ -222,7 +222,7 @@ public class PostServiceImpl implements PostService {
     @Override
     @Transactional(readOnly = true)
     public PageResponse<PostListResponse> getAllPosts(int page, int size, String sortBy, String direction,
-                                                      PostType type, PostStatus status) {
+            PostType type, PostStatus status) {
         Sort sort = Sort.by(Sort.Direction.fromString(direction), sortBy);
         Pageable pageable = PageRequest.of(page, size, sort);
 
@@ -246,7 +246,7 @@ public class PostServiceImpl implements PostService {
     @Override
     @Transactional(readOnly = true)
     public PageResponse<PostListResponse> filterPosts(PostFilterRequest request, int page,
-                                                      int size, String sortBy, String direction, PostType type, PostStatus status) {
+            int size, String sortBy, String direction, PostType type, PostStatus status) {
         System.out.println("========== ĐÃ VÀO ĐƯỢC CONTROLLER FILTER ==========");
         System.out.println("Ngày nhận: " + request.getDate());
         System.out.println("Giờ nhận: " + request.getTime());
@@ -257,9 +257,9 @@ public class PostServiceImpl implements PostService {
             List<Predicate> predicates = new ArrayList<>();
 
             // Only show public posts by default for search/filter
-//            predicates.add(cb.or(
-//                    cb.isNull(root.get("hidePostType")),
-//                    cb.equal(root.get("hidePostType"), HidePostType.PUBLIC)));
+            // predicates.add(cb.or(
+            // cb.isNull(root.get("hidePostType")),
+            // cb.equal(root.get("hidePostType"), HidePostType.PUBLIC)));
 
             if (type != null) {
                 predicates.add(cb.equal(root.get("type"), type));
@@ -288,7 +288,8 @@ public class PostServiceImpl implements PostService {
                     LocalDateTime endOfDay = request.getDate().atTime(23, 59, 59);
                     predicates.add(cb.between(root.get("eventTime"), startOfDay, endOfDay));
                 } else if (request.getTime() != null) {
-                    // Only Time is present: match by hour using PostgreSQL's native date_part function
+                    // Only Time is present: match by hour using PostgreSQL's native date_part
+                    // function
                     predicates.add(cb.equal(
                             cb.function("date_part", Integer.class, cb.literal("hour"), root.get("eventTime")),
                             request.getTime().getHour()));
@@ -299,7 +300,6 @@ public class PostServiceImpl implements PostService {
         };
 
         Page<Post> postPage = postRepository.findAll(spec, pageable);
-
 
         // THÊM DÒNG NÀY ĐỂ XEM KẾT QUẢ TỪ DB:
         System.out.println("TỔNG SỐ BẢN GHI TÌM ĐƯỢC TRONG DB: " + postPage.getTotalElements());
@@ -325,6 +325,74 @@ public class PostServiceImpl implements PostService {
         post.setDeleteAt(LocalDateTime.now());
         post.setStatus(PostStatus.DELETED);
         postRepository.save(post);
+    }
+
+    @Override
+    @Transactional
+    public FullPostDetails updatePost(Long id, Long userId, UpdatePostRequest request) {
+        Post post = postRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Post not found"));
+
+        if (!post.getUser().getId().equals(userId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You do not have permission to edit this post");
+        }
+
+        boolean textUpdated = false;
+
+        if (request.getTitle() != null && !request.getTitle().isBlank()) {
+            post.setTitle(request.getTitle());
+            textUpdated = true;
+        }
+
+        if (request.getDescription() != null) {
+            post.setDescription(request.getDescription());
+            textUpdated = true;
+        }
+
+        if (request.getEventTime() != null) {
+            post.setEventTime(request.getEventTime());
+        }
+
+        if (request.getHidePostType() != null) {
+            post.setHidePostType(request.getHidePostType());
+        }
+
+        if (request.hasLocation()) {
+            Location location = post.getLocation();
+            if (location == null) {
+                location = Location.builder().build();
+                post.setLocation(location);
+            }
+            if (request.getAddress() != null)
+                location.setAddress(request.getAddress());
+            if (request.getCity() != null)
+                location.setCity(request.getCity());
+            if (request.getDistrict() != null)
+                location.setDistrict(request.getDistrict());
+            if (request.getLatitude() != null)
+                location.setLatitude(request.getLatitude());
+            if (request.getLongitude() != null)
+                location.setLongitude(request.getLongitude());
+            if (request.getLocationLevel() != null)
+                location.setLocationLevel(request.getLocationLevel());
+
+            locationRepository.save(location);
+        }
+
+        postRepository.save(post);
+
+        // Update CLIP embedding if text changes (optional but good for consistency)
+        if (textUpdated) {
+            try {
+                String typeStr = post.getType().name();
+                String text = buildText(post.getTitle(), post.getDescription());
+                clipClient.embedText(post.getId(), text, typeStr);
+            } catch (Exception e) {
+                log.warn("Failed to update text embedding for post {}: {}", post.getId(), e.getMessage());
+            }
+        }
+
+        return postMapper.toFullDetails(post, null);
     }
 
     // ============================================================================================//

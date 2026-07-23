@@ -25,6 +25,8 @@ public interface PostService {
 
     FullPostDetails getPostById(Long id);
 
+    FullPostDetails updatePost(Long id, Long userId, com.sba301.lostandfound.dto.UpdatePostRequest request);
+
     void updatePostStatus(Long id, PostStatus status);
 
     void deletePost(Long id);

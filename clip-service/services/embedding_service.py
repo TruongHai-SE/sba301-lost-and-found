@@ -327,23 +327,15 @@ class EmbeddingService:
                     has_overlap = True
                     overlap_count = len(overlap)
 
-            is_text_text_no_overlap = (query_type == "TEXT" and best_txt is not None and query_words and not has_overlap)
-
             # Combine scores using same-modality weighting
             if scaled_img is not None and scaled_txt is not None:
                 if query_type == "IMAGE":
                     combined_score = 0.7 * scaled_img + 0.3 * scaled_txt
                 else:
-                    if is_text_text_no_overlap:
-                        scaled_txt = max(0.0, scaled_txt - 5.0)
-                        scaled_txt = min(30.0, scaled_txt)
                     combined_score = 0.7 * scaled_txt + 0.3 * scaled_img
             elif scaled_img is not None:
                 combined_score = scaled_img
             elif scaled_txt is not None:
-                if is_text_text_no_overlap:
-                    scaled_txt = max(0.0, scaled_txt - 5.0)
-                    scaled_txt = min(30.0, scaled_txt)
                 combined_score = scaled_txt
             else:
                 combined_score = 0.0

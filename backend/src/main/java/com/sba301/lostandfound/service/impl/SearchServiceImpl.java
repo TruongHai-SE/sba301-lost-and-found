@@ -9,6 +9,7 @@ import com.sba301.lostandfound.entity.Post;
 import com.sba301.lostandfound.repository.PostRepository;
 import com.sba301.lostandfound.service.ImageStorageService;
 import com.sba301.lostandfound.service.SearchService;
+import com.sba301.lostandfound.util.StringSanitizer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -122,7 +123,11 @@ public class SearchServiceImpl implements SearchService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Text is required for text search");
         }
-        return doSearch(null, text, topK, targetType, "TEXT");
+        String sanitizedText = StringSanitizer.sanitizeSearchText(text);
+        if (sanitizedText.isBlank()) {
+            return new SearchResponse("TEXT", 0, List.of());
+        }
+        return doSearch(null, sanitizedText, topK, targetType, "TEXT");
     }
 
     /**

@@ -10,6 +10,7 @@ import com.sba301.lostandfound.repository.MatchRequestRepository;
 import com.sba301.lostandfound.repository.RefreshTokenRepository;
 import com.sba301.lostandfound.repository.UserRepository;
 import com.sba301.lostandfound.service.UserService;
+import com.sba301.lostandfound.util.StringSanitizer;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -79,7 +80,8 @@ public class UserServiceImpl implements UserService {
         Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortBy));
 
         // Normalize search: null, empty, or blank → treat as no filter
-        String searchTerm = (search == null || search.isBlank()) ? null : search.strip();
+        String clean = (search == null || search.isBlank()) ? null : StringSanitizer.sanitizeSearchText(search);
+        String searchTerm = (clean == null || clean.isBlank()) ? null : clean;
         Page<User> userPage = userRepository.findBySearchAndRole(searchTerm, role, pageable);
 
         return PageResponse.from(userPage.map(this::toResponse));

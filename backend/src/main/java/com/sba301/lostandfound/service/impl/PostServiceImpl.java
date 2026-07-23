@@ -348,6 +348,17 @@ public class PostServiceImpl implements PostService {
                             cb.function("date_part", Integer.class, cb.literal("hour"), root.get("eventTime")),
                             request.getTime().getHour()));
                 }
+
+                if (request.getCategory() != null) {
+                    predicates.add(cb.equal(root.get("category"), request.getCategory()));
+                }
+
+                if (request.getTag() != null && !request.getTag().trim().isEmpty()) {
+                    String tagLiteral = request.getTag().trim().toLowerCase();
+                    predicates.add(cb.isNotNull(
+                            cb.function("array_position", Integer.class, root.get("tags"), cb.literal(tagLiteral))
+                    ));
+                }
             }
 
             return cb.and(predicates.toArray(new Predicate[0]));

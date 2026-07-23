@@ -33,6 +33,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestPart;
+import com.sba301.lostandfound.dto.PostFilterRequest;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.web.multipart.MultipartFile;
 
 @RestController
@@ -154,7 +156,7 @@ public class PostController {
 
     @GetMapping("/filter")
     public ResponseEntity<ApiResponse<PageResponse<PostListResponse>>> filterPosts(
-            @ModelAttribute com.sba301.lostandfound.dto.PostFilterRequest filterRequest,
+            @ParameterObject @ModelAttribute PostFilterRequest filterRequest,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "createdAt") String sortBy,

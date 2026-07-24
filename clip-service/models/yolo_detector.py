@@ -46,3 +46,21 @@ class YOLODetector:
         x1, y1 = max(0, x1 - padding), max(0, y1 - padding)
         x2, y2 = min(img.width, x2 + padding), min(img.height, y2 + padding)
         return img.crop((x1, y1, x2, y2))
+
+    def detect_classes(self, img: Image.Image, conf_threshold: float = 0.25) -> list[str]:
+        """Return list of detected COCO class names in the image."""
+        results = self.model(img, verbose=False)
+        if not results or not results[0].boxes:
+            return []
+        
+        names = results[0].names
+        detected = []
+        for box in results[0].boxes:
+            conf = float(box.conf[0])
+            cls_id = int(box.cls[0])
+            if conf >= conf_threshold:
+                cls_name = names.get(cls_id, str(cls_id))
+                if cls_name not in detected:
+                    detected.append(cls_name)
+        return detected
+

@@ -84,16 +84,25 @@ public class PostController {
     }
 
     /**
-     * Search bằng text (application/json).
-     * Body: { "text": "...", "top_k": 10, "target_type": "FOUND" }
+     * Search bằng text (application/json), kết hợp filter (tuỳ chọn).
+     * Body: {
+     *   "text": "...",
+     *   "top_k": 10,
+     *   "target_type": "FOUND",
+     *   "category": "WALLET",
+     *   "district": "Quận 1",
+     *   "date": "2024-01-15",
+     *   "time": "14:30",
+     *   "tag": "da",
+     *   "status": "ACTIVE"
+     * }
+     *
+     * <p>Các trường filter đều optional. Khi truyền, filter áp lên kết quả
+     * CLIP semantic search (mặc định status = ACTIVE nếu không truyền).
      */
     @PostMapping(value = "/search/text", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<SearchResponse>> searchByText(@RequestBody SearchByTextRequest request) {
-        SearchResponse result = searchService.searchByText(
-                request.text(),
-                request.topK(),
-                request.targetType()
-        );
+        SearchResponse result = searchService.searchByText(request);
         return ResponseEntity.ok(ApiResponse.success(result, "Search completed successfully"));
     }
 

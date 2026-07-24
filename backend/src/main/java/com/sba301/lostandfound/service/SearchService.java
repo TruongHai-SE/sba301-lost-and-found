@@ -1,5 +1,6 @@
 package com.sba301.lostandfound.service;
 
+import com.sba301.lostandfound.dto.SearchByTextRequest;
 import com.sba301.lostandfound.dto.SearchResponse;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -29,6 +30,9 @@ public interface SearchService {
     /**
      * Tìm các post tương tự dựa trên text (không cần ảnh).
      * Ít chính xác hơn image search, dùng khi user không có ảnh.
+     *
+     * <p>Request có thể kèm filter (category, district, date, time, tag, status) -
+     * filter sẽ áp lên kết quả CLIP semantic search.
      */
-    SearchResponse searchByText(String text, Integer topK, String targetType);
+    SearchResponse searchByText(SearchByTextRequest request);
 }

@@ -30,6 +30,7 @@ import com.sba301.lostandfound.service.ImageStorageService;
 import com.sba301.lostandfound.service.PostService;
 import com.sba301.lostandfound.service.PostAiEnrichmentService;
 import com.sba301.lostandfound.service.ImageAnalysisService;
+import com.sba301.lostandfound.specification.PostSpecifications;
 import org.springframework.web.multipart.MultipartFile;
 import java.util.Optional;
 import java.time.LocalDate;
@@ -303,79 +304,18 @@ public class PostServiceImpl implements PostService {
     @Transactional(readOnly = true)
     public PageResponse<PostListResponse> filterPosts(PostFilterRequest request, int page,
                                                       int size, String sortBy, String direction, PostType type, PostStatus status) {
-        System.out.println("========== ĐÃ VÀO ĐƯỢC CONTROLLER FILTER ==========");
-        System.out.println("Ngày nhận: " + request.getDate());
-        System.out.println("Giờ nhận: " + request.getTime());
         Sort sort = Sort.by(Sort.Direction.fromString(direction), sortBy);
         Pageable pageable = PageRequest.of(page, size, sort);
 
-        Specification<Post> spec = (root, query, cb) -> {
-            List<Predicate> predicates = new ArrayList<>();
-
-            // Only show public posts by default for search/filter
-//            predicates.add(cb.or(
-//                    cb.isNull(root.get("hidePostType")),
-//                    cb.equal(root.get("hidePostType"), HidePostType.PUBLIC)));
-
-            if (type != null) {
-                predicates.add(cb.equal(root.get("type"), type));
-            }
-            if (status != null) {
-                predicates.add(cb.equal(root.get("status"), status));
-            }
-
-            if (request != null) {
-                if (request.getDistrict() != null && !request.getDistrict().trim().isEmpty()) {
-                    String cleanDistrict = StringSanitizer.sanitizeSearchText(request.getDistrict());
-                    if (!cleanDistrict.isBlank()) {
-                        predicates.add(cb.like(
-                                cb.lower(root.join("location").get("district")),
-                                "%" + cleanDistrict + "%"));
-                    }
-                }
-
-                if (request.getDate() != null && request.getTime() != null) {
-                    // Both Date and Time are present: range +/- 1 hour
-                    LocalDateTime targetDateTime = request.getDate().atTime(request.getTime());
-                    LocalDateTime start = targetDateTime.minusHours(1);
-                    LocalDateTime end = targetDateTime.plusHours(1);
-                    predicates.add(cb.between(root.get("eventTime"), start, end));
-                    // Sửa lại nhánh chỉ có Date:
-                } else if (request.getDate() != null) {
-                    LocalDateTime startOfDay = request.getDate().atStartOfDay();
-                    // Bỏ LocalTime.MAX đi, thay bằng dòng dưới:
-                    LocalDateTime endOfDay = request.getDate().atTime(23, 59, 59);
-                    predicates.add(cb.between(root.get("eventTime"), startOfDay, endOfDay));
-                } else if (request.getTime() != null) {
-                    // Only Time is present: match by hour using PostgreSQL's native date_part function
-                    predicates.add(cb.equal(
-                            cb.function("date_part", Integer.class, cb.literal("hour"), root.get("eventTime")),
-                            request.getTime().getHour()));
-                }
-
-                if (request.getCategory() != null) {
-                    predicates.add(cb.equal(root.get("category"), request.getCategory()));
-                }
-
-                if (request.getTag() != null && !request.getTag().trim().isEmpty()) {
-                    String cleanTag = StringSanitizer.sanitizeSearchText(request.getTag());
-                    if (!cleanTag.isBlank()) {
-                        predicates.add(cb.like(
-                                cb.lower(cb.function("array_to_string", String.class, root.get("tags"), cb.literal(","))),
-                                "%" + cleanTag + "%"
-                        ));
-                    }
-                }
-            }
-
-            return cb.and(predicates.toArray(new Predicate[0]));
-        };
+        Specification<Post> spec = PostSpecifications.combine(
+                PostSpecifications.hasType(type),
+                PostSpecifications.hasStatus(status),
+                request == null ? null : PostSpecifications.hasCategory(request.getCategory()),
+                request == null ? null : PostSpecifications.districtLike(request.getDistrict()),
+                request == null ? null : PostSpecifications.eventTimeMatches(request.getDate(), request.getTime()),
+                request == null ? null : PostSpecifications.tagLike(request.getTag()));
 
         Page<Post> postPage = postRepository.findAll(spec, pageable);
-
-
-        // THÊM DÒNG NÀY ĐỂ XEM KẾT QUẢ TỪ DB:
-        System.out.println("TỔNG SỐ BẢN GHI TÌM ĐƯỢC TRONG DB: " + postPage.getTotalElements());
 
         Page<PostListResponse> dtoPage = postPage.map(PostListResponse::from);
         return PageResponse.from(dtoPage);

@@ -4,11 +4,14 @@ import com.sba301.lostandfound.client.ClipClient;
 import com.sba301.lostandfound.dto.BlurredPostSummary;
 import com.sba301.lostandfound.dto.ClipEmbedResponse;
 import com.sba301.lostandfound.dto.ClipMatch;
+import com.sba301.lostandfound.dto.SearchByTextRequest;
 import com.sba301.lostandfound.dto.SearchResponse;
 import com.sba301.lostandfound.entity.Post;
+import com.sba301.lostandfound.entity.enums.PostStatus;
 import com.sba301.lostandfound.repository.PostRepository;
 import com.sba301.lostandfound.service.ImageStorageService;
 import com.sba301.lostandfound.service.SearchService;
+import com.sba301.lostandfound.specification.PostSpecifications;
 import com.sba301.lostandfound.util.StringSanitizer;
 import java.util.ArrayList;
 import java.util.List;
@@ -19,6 +22,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,8 +48,14 @@ public class SearchServiceImpl implements SearchService {
 
     /** Default topK nếu FE không truyền. */
     private static final int DEFAULT_TOP_K = 10;
-    /** Cap để tránh CLIP/DB overload. */
+    /** Cap mặc định để tránh CLIP/DB overload. */
     private static final int MAX_TOP_K = 50;
+    /** Cap khi có filter: mở rộng nguồn để tránh kết quả rỗng sau khi filter. */
+    private static final int MAX_TOP_K_WITH_FILTER = 100;
+    /** Hệ số nhân top_k khi có filter (để CLIP trả nhiều hơn, bù cho phần bị filter loại). */
+    private static final int FILTER_TOP_K_MULTIPLIER = 3;
+    /** Score tối thiểu để chấp nhận match CLIP. */
+    private static final double MIN_MATCH_SCORE = 0.5;
 
     private final ImageStorageService imageStorageService;
     private final ClipClient clipClient;
@@ -84,9 +94,47 @@ public class SearchServiceImpl implements SearchService {
             log.warn("CLIP searchByImageBytes failed: {}", exception.getMessage());
             return new SearchResponse("IMAGE", 0, List.of());
         }
+        return buildResponseFromClip(response, "IMAGE", type, null);
+    }
 
+    @Override
+    @Transactional(readOnly = true)
+    public SearchResponse searchByText(SearchByTextRequest request) {
+        if (request == null || request.text() == null || request.text().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Text is required for text search");
+        }
+        String sanitizedText = StringSanitizer.sanitizeSearchText(request.text());
+        if (sanitizedText.isBlank()) {
+            return new SearchResponse("TEXT", 0, List.of());
+        }
+        boolean hasFilter = hasAnyFilter(request);
+        int k = clampTopK(request.topK(), hasFilter);
+        String type = normalizeTargetType(request.targetType());
+
+        ClipEmbedResponse response;
+        try {
+            response = clipClient.search(null, sanitizedText, type, k);
+        } catch (RuntimeException exception) {
+            log.warn("CLIP text search failed: {}", exception.getMessage());
+            return new SearchResponse("TEXT", 0, List.of());
+        }
+        return buildResponseFromClip(response, "TEXT", type, hasFilter ? request : null);
+    }
+
+    /**
+     * Biến đổi kết quả CLIP (danh sách post_id + score) thành SearchResponse,
+     * áp filter (nếu có) lên DB trước khi map sang BlurredPostSummary.
+     *
+     * @param response      Kết quả từ CLIP (matches theo thứ tự score DESC).
+     * @param queryType     IMAGE | TEXT - để echo lại cho FE.
+     * @param type          targetType đã normalize (log).
+     * @param filterRequest Filter từ search text request (null nếu không có filter).
+     */
+    private SearchResponse buildResponseFromClip(
+            ClipEmbedResponse response, String queryType, String type, SearchByTextRequest filterRequest) {
         if (response == null || response.matches() == null || response.matches().isEmpty()) {
-            return new SearchResponse("IMAGE", 0, List.of());
+            return new SearchResponse(queryType, 0, List.of());
         }
 
         List<Long> postIds = response.matches().stream()
@@ -95,7 +143,13 @@ public class SearchServiceImpl implements SearchService {
                 .distinct()
                 .toList();
 
-        List<Post> posts = postIds.isEmpty() ? List.of() : postRepository.findAllByIdIn(postIds);
+        List<Post> posts;
+        if (filterRequest == null) {
+            posts = postIds.isEmpty() ? List.of() : postRepository.findAllByIdIn(postIds);
+        } else {
+            posts = postIds.isEmpty() ? List.of()
+                    : postRepository.findAll(buildFilterSpec(postIds, filterRequest));
+        }
 
         Map<Long, Post> postMap = posts.stream()
                 .collect(Collectors.toMap(Post::getId, Function.identity()));
@@ -104,73 +158,7 @@ public class SearchServiceImpl implements SearchService {
         for (ClipMatch match : response.matches()) {
             if (match.postId() == null)
                 continue;
-            if (match.score() != null && match.score() < 0.5)
-                continue;
-            Post post = postMap.get(match.postId());
-            if (post == null)
-                continue;
-            results.add(postMapper.toBlurredSummary(post, match));
-        }
-
-        log.info("Search [IMAGE] target={} returned {} results", type, results.size());
-        return new SearchResponse("IMAGE", results.size(), results);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public SearchResponse searchByText(String text, Integer topK, String targetType) {
-        if (text == null || text.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Text is required for text search");
-        }
-        String sanitizedText = StringSanitizer.sanitizeSearchText(text);
-        if (sanitizedText.isBlank()) {
-            return new SearchResponse("TEXT", 0, List.of());
-        }
-        return doSearch(null, sanitizedText, topK, targetType, "TEXT");
-    }
-
-    /**
-     * Gọi CLIP search, sau đó enrich kết quả với thông tin từ DB.
-     *
-     * @param queryImageUrl URL ảnh (cho image search) hoặc null (cho text search)
-     * @param queryText     Text mô tả (bắt buộc nếu image null)
-     * @param topK          Số kết quả tối đa
-     * @param targetType    LOST | FOUND | ALL
-     * @param queryType     IMAGE | TEXT - để echo lại cho FE
-     */
-    private SearchResponse doSearch(
-            String queryImageUrl, String queryText, Integer topK, String targetType, String queryType) {
-        int k = clampTopK(topK);
-        String type = normalizeTargetType(targetType);
-
-        ClipEmbedResponse response;
-        try {
-            response = clipClient.search(queryImageUrl, queryText, type, k);
-        } catch (RuntimeException exception) {
-            log.warn("CLIP search failed: {}", exception.getMessage());
-            return new SearchResponse(queryType, 0, List.of());
-        }
-
-        if (response == null || response.matches() == null || response.matches().isEmpty()) {
-            return new SearchResponse(queryType, 0, List.of());
-        }
-
-        List<Long> postIds = response.matches().stream()
-                .map(ClipMatch::postId)
-                .filter(Objects::nonNull)
-                .toList();
-
-        List<Post> posts = postIds.isEmpty() ? List.of() : postRepository.findAllByIdIn(postIds);
-
-        Map<Long, Post> postMap = posts.stream()
-                .collect(Collectors.toMap(Post::getId, Function.identity()));
-
-        List<BlurredPostSummary> results = new ArrayList<>();
-        for (ClipMatch match : response.matches()) {
-            if (match.postId() == null)
-                continue;
-            if (match.score() != null && match.score() < 0.5)
+            if (match.score() != null && match.score() < MIN_MATCH_SCORE)
                 continue;
             Post post = postMap.get(match.postId());
             if (post == null)
@@ -182,10 +170,48 @@ public class SearchServiceImpl implements SearchService {
         return new SearchResponse(queryType, results.size(), results);
     }
 
+    /**
+     * Build Specification lọc post theo id IN postIds, đồng thời áp các filter
+     * khác (category, district, date/time, tag, status). Mặc định status = ACTIVE
+     * để không lộ post DELETED/RESOLVED.
+     */
+    @SuppressWarnings("unchecked")
+    private static Specification<Post> buildFilterSpec(List<Long> postIds, SearchByTextRequest req) {
+        PostStatus status = req.status() != null ? req.status() : PostStatus.ACTIVE;
+        return PostSpecifications.combine(
+                PostSpecifications.idIn(postIds),
+                PostSpecifications.hasStatus(status),
+                PostSpecifications.hasCategory(req.category()),
+                PostSpecifications.districtLike(req.district()),
+                PostSpecifications.eventTimeMatches(req.date(), req.time()),
+                PostSpecifications.tagLike(req.tag()));
+    }
+
+    /** Kiểm tra request có truyền filter nào không (để quyết định mở rộng top_k). */
+    private static boolean hasAnyFilter(SearchByTextRequest req) {
+        return req.category() != null
+                || (req.district() != null && !req.district().isBlank())
+                || req.date() != null
+                || req.time() != null
+                || (req.tag() != null && !req.tag().isBlank())
+                || req.status() != null;
+    }
+
     private int clampTopK(Integer topK) {
-        if (topK == null || topK <= 0)
-            return DEFAULT_TOP_K;
-        return Math.min(topK, MAX_TOP_K);
+        return clampTopK(topK, false);
+    }
+
+    /**
+     * Tính top_k gửi CLIP. Khi có filter, nhân lên để đảm bảo đủ nguồn cho filter
+     * (vì filter thu hẹp kết quả), capped theo {@link #MAX_TOP_K_WITH_FILTER}.
+     */
+    private int clampTopK(Integer topK, boolean hasFilter) {
+        int base = (topK == null || topK <= 0) ? DEFAULT_TOP_K : topK;
+        if (!hasFilter) {
+            return Math.min(base, MAX_TOP_K);
+        }
+        int expanded = base * FILTER_TOP_K_MULTIPLIER;
+        return Math.min(expanded, MAX_TOP_K_WITH_FILTER);
     }
 
     /**

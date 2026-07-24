@@ -20,6 +20,10 @@ public interface PostRepository extends JpaRepository<Post, Long>, JpaSpecificat
     @EntityGraph(attributePaths = {"user", "image", "location"})
     Page<Post> findAll(Specification<Post> spec, Pageable pageable);
 
+    @Override
+    @EntityGraph(attributePaths = {"user", "image", "location"})
+    List<Post> findAll(Specification<Post> spec);
+
     @EntityGraph(attributePaths = {"user", "image", "location"})
     List<Post> findAllByIdIn(List<Long> ids);
 }

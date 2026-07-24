@@ -26,7 +26,7 @@ async def lifespan(app: FastAPI):
     else:
          dbg_logger.info("/app/.local directory does not exist!")
     dbg_logger.info("====== [DEBUG] End of file listing ======")
-    
+
     svc = EmbeddingService()
     # Warm-up models to eliminate cold start latency for the first request
     try:
@@ -125,7 +125,7 @@ class SearchRequest(BaseModel):
         default="ALL", description="Filter results by post type. Use 'LOST' to search lost items, 'FOUND' for found items, or 'ALL' for both."
     )
     top_k: int = Field(default=10, gt=0, le=100)
-    threshold: float = Field(default=0.5, ge=-1, le=1)
+    threshold: float | None = Field(default=None, ge=-1, le=1)
 
 
 # Routes
@@ -196,7 +196,7 @@ async def search_by_image_bytes(
     image: UploadFile = File(...),
     target_post_type: Literal["LOST", "FOUND", "ALL"] = Form("ALL"),
     top_k: int = Form(10),
-    threshold: float = Form(0.5),
+    threshold: float | None = Form(None),
 ):
     """Directly search by raw image bytes via RAM processing."""
     try:

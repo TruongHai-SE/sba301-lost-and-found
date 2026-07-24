@@ -154,49 +154,62 @@ class EmbeddingService:
                 "message": "Hình ảnh quá mờ hoặc không có vật thể rõ ràng. Vui lòng chọn ảnh chụp rõ nét hơn."
             }
 
-        # 1. Zero-shot prompts comparison
+        # 1. Check YOLO detected objects (Dynamic Object Detection)
+        # Any detected YOLO class that is NOT 'person' is recognized as a valid physical item/object!
+        yolo_classes = self.yolo.detect_classes(img)
+        has_detected_item = any(cls != "person" for cls in yolo_classes)
+        has_person = "person" in yolo_classes
+
+        if has_person and not has_detected_item:
+
+            return {
+                "is_valid": False,
+                "reason_code": "PEOPLE",
+                "message": "Hình ảnh chứa mặt người/chân dung. Vui lòng chọn ảnh chụp rõ món đồ bị mất hoặc nhặt được."
+            }
+
+        # 2. Only run CLIP zero-shot forbidden prompts for PEOPLE/SELFIE/BLANK
+        # MEME and SCREENSHOT checks were intentionally removed to prevent false positives
+        # on valid items like ID cards, receipts, lost pet posters, and product photos.
         img_vec = self.clip.encode_image(img)
-        
+
         forbidden_prompts = [
-            ("SELFIE", "a selfie or close-up portrait of a person's face"),
-            ("PEOPLE", "a photo of people or group of friends"),
-            ("SCREENSHOT", "a screenshot of a phone screen, banking app, or text chat"),
-            ("MEME", "an internet meme, text graphic, or cartoon"),
-            ("BLANK", "a blank, black, white, or extremely blurry out of focus picture"),
+            (
+                "SELFIE", 0.20,
+                "a selfie photo taken by someone holding a phone, close-up portrait of a human face, "
+                "a person taking a picture of themselves, face photo, woman face, man face, girl face, boy face",
+            ),
+            (
+                "PEOPLE", 0.20,
+                "a photograph of a person, multiple people, a crowd, human being standing or sitting, "
+                "portrait photo, human silhouette, a man, a woman, a girl, a boy, human portrait",
+            ),
+            (
+                "BLANK", 0.20,
+                "a completely blank image, a solid white or black image, "
+                "an extremely blurry unfocused photograph, a photo taken in the dark with no visible objects",
+            ),
         ]
 
-        allowed_prompt = "a photo of a physical lost or found object like a wallet, bag, card, phone, key, or pet"
-        allowed_vec = self.clip.encode_text(allowed_prompt, translate=False)
+        messages = {
+            "SELFIE": "Hình ảnh chứa chủ yếu mặt người/ảnh chân dung. Vui lòng chọn ảnh chụp rõ đồ vật (Ví, Balo, Giấy tờ...).",
+            "PEOPLE": "Hình ảnh chứa mặt người hoặc nhóm người. Vui lòng chọn ảnh chụp rõ món đồ bị mất hoặc nhặt được.",
+            "BLANK": "Hình ảnh quá mờ hoặc không có vật thể rõ ràng. Vui lòng chọn ảnh chụp rõ nét hơn.",
+        }
 
-        allowed_score = float(np.dot(img_vec, allowed_vec))
-
-        highest_forbidden_score = -1.0
-        matched_reason = None
-
-        for code, prompt in forbidden_prompts:
+        for code, threshold_for_code, prompt in forbidden_prompts:
             p_vec = self.clip.encode_text(prompt, translate=False)
             score = float(np.dot(img_vec, p_vec))
-            if score > highest_forbidden_score:
-                highest_forbidden_score = score
-                matched_reason = code
+            if score >= threshold_for_code:
+                msg = messages.get(code, "Hình ảnh không chứa vật thể tìm kiếm phù hợp. Vui lòng chọn ảnh khác.")
+                return {"is_valid": False, "reason_code": code, "message": msg}
 
-        # Run YOLO to check object presence
-        cropped = self.yolo.crop_main_object(img)
-        yolo_found_object = cropped.size != img.size
-
-        if highest_forbidden_score > 0.70 and highest_forbidden_score > allowed_score and not yolo_found_object:
-            messages = {
-                "SELFIE": "Hình ảnh chứa chủ yếu mặt người/ảnh chân dung. Vui lòng chọn ảnh chụp rõ đồ vật (Ví, Balo, Giấy tờ...).",
-                "PEOPLE": "Hình ảnh chứa mặt người hoặc nhóm người. Vui lòng chọn ảnh chụp rõ món đồ bị mất hoặc nhặt được.",
-                "SCREENSHOT": "Hình ảnh là ảnh chụp màn hình/mã QR/ảnh chữ. Vui lòng chọn ảnh chụp món đồ thực tế.",
-                "MEME": "Hình ảnh là ảnh minh họa/meme/ảnh chữ. Vui lòng chọn ảnh chụp món đồ thực tế.",
-                "BLANK": "Hình ảnh quá mờ hoặc không có vật thể rõ ràng. Vui lòng chọn ảnh chụp rõ nét hơn.",
-            }
-            msg = messages.get(matched_reason, "Hình ảnh không chứa vật thể tìm kiếm phù hợp. Vui lòng chọn ảnh khác.")
-            return {"is_valid": False, "reason_code": matched_reason, "message": msg}
 
         # 2. Check title-image consistency if title is provided
         if title and title.strip():
+            # Ensure img_vec is available
+            if 'img_vec' not in locals():
+                img_vec = self.clip.encode_image(img)
             title_vec = self.clip.encode_text(title, translate=True)
             cosine = float(np.dot(img_vec, title_vec))
             if cosine < 0.15:
@@ -224,14 +237,14 @@ class EmbeddingService:
                 min_b = 40.0
                 max_b = 95.0
         else:
-            zero_b = 10.0
-            min_b = settings.clip_score_min  # 21.0
-            max_b = settings.clip_score_max  # 29.0
+            zero_b = 18.0
+            min_b = settings.clip_score_min  # 25.0
+            max_b = settings.clip_score_max  # 34.0
 
         if raw >= min_b:
             scaled = 50.0 + (raw - min_b) / (max_b - min_b) * 50.0
         else:
-            scaled = (raw - zero_b) / (min_b - zero_b) * 50.0
+            scaled = max(0.0, (raw - zero_b) / (min_b - zero_b) * 50.0)
 
         return max(0.0, min(100.0, scaled))
 

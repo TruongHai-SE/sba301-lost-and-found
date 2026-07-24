@@ -33,15 +33,36 @@ public class ImageStorageServiceImpl implements ImageStorageService {
                 file.getBytes(),
                 ObjectUtils.asMap("folder", "lost-and-found")
             );
-            Object secureUrl = result.get("secure_url");
-            if (secureUrl == null) {
-                throw new ResponseStatusException(
-                    HttpStatus.BAD_GATEWAY, "Cloudinary did not return a secure_url");
-            }
-            return secureUrl.toString();
+            return extractSecureUrl(result);
         } catch (IOException exception) {
             throw new ResponseStatusException(
                 HttpStatus.BAD_GATEWAY, "Failed to upload image to storage", exception);
         }
+    }
+
+    @Override
+    public String uploadFromUrl(String sourceUrl) {
+        if (sourceUrl == null || sourceUrl.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Source image URL is required");
+        }
+        try {
+            Map<?, ?> result = cloudinary.uploader().upload(
+                sourceUrl,
+                ObjectUtils.asMap("folder", "lost-and-found/stock")
+            );
+            return extractSecureUrl(result);
+        } catch (IOException exception) {
+            throw new ResponseStatusException(
+                HttpStatus.BAD_GATEWAY, "Failed to re-host image from URL: " + sourceUrl, exception);
+        }
+    }
+
+    private String extractSecureUrl(Map<?, ?> result) {
+        Object secureUrl = result.get("secure_url");
+        if (secureUrl == null) {
+            throw new ResponseStatusException(
+                HttpStatus.BAD_GATEWAY, "Cloudinary did not return a secure_url");
+        }
+        return secureUrl.toString();
     }
 }

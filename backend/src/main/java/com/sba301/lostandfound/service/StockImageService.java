@@ -1,10 +1,9 @@
 package com.sba301.lostandfound.service;
 
-import com.sba301.lostandfound.dto.CreateStockImageRequest;
 import com.sba301.lostandfound.dto.StockImageResponse;
-import com.sba301.lostandfound.dto.UpdateStockImageRequest;
 import com.sba301.lostandfound.entity.enums.Category;
 import java.util.List;
+import org.springframework.web.multipart.MultipartFile;
 
 public interface StockImageService {
 
@@ -14,9 +13,9 @@ public interface StockImageService {
 
     StockImageResponse getById(Long id);
 
-    StockImageResponse create(CreateStockImageRequest request);
+    StockImageResponse create(MultipartFile file, Category category, String label);
 
-    StockImageResponse update(Long id, UpdateStockImageRequest request);
+    StockImageResponse update(Long id, MultipartFile file, Category category, String label);
 
     void delete(Long id);
 }

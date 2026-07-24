@@ -1,8 +1,6 @@
 package com.sba301.lostandfound.service.impl;
 
-import com.sba301.lostandfound.dto.CreateStockImageRequest;
 import com.sba301.lostandfound.dto.StockImageResponse;
-import com.sba301.lostandfound.dto.UpdateStockImageRequest;
 import com.sba301.lostandfound.entity.StockImage;
 import com.sba301.lostandfound.entity.enums.Category;
 import com.sba301.lostandfound.repository.StockImageRepository;
@@ -14,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
@@ -49,12 +48,15 @@ public class StockImageServiceImpl implements StockImageService {
 
     @Override
     @Transactional
-    public StockImageResponse create(CreateStockImageRequest request) {
-        String cloudinaryUrl = imageStorageService.uploadFromUrl(request.getImageUrl());
+    public StockImageResponse create(MultipartFile file, Category category, String label) {
+        if (file == null || file.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Image file is required");
+        }
+        String cloudinaryUrl = imageStorageService.upload(file);
         StockImage stockImage = stockImageRepository.save(StockImage.builder()
-                .category(request.getCategory())
+                .category(category)
                 .imageUrl(cloudinaryUrl)
-                .label(request.getLabel())
+                .label(label)
                 .createdAt(LocalDateTime.now())
                 .build());
         return StockImageResponse.from(stockImage);
@@ -62,19 +64,19 @@ public class StockImageServiceImpl implements StockImageService {
 
     @Override
     @Transactional
-    public StockImageResponse update(Long id, UpdateStockImageRequest request) {
+    public StockImageResponse update(Long id, MultipartFile file, Category category, String label) {
         StockImage stockImage = stockImageRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Stock image not found: " + id));
 
-        if (request.getCategory() != null) {
-            stockImage.setCategory(request.getCategory());
-        }
-        if (request.getImageUrl() != null && !request.getImageUrl().isBlank()) {
-            String cloudinaryUrl = imageStorageService.uploadFromUrl(request.getImageUrl());
+        if (file != null && !file.isEmpty()) {
+            String cloudinaryUrl = imageStorageService.upload(file);
             stockImage.setImageUrl(cloudinaryUrl);
         }
-        if (request.getLabel() != null) {
-            stockImage.setLabel(request.getLabel());
+        if (category != null) {
+            stockImage.setCategory(category);
+        }
+        if (label != null) {
+            stockImage.setLabel(label);
         }
 
         return StockImageResponse.from(stockImageRepository.save(stockImage));

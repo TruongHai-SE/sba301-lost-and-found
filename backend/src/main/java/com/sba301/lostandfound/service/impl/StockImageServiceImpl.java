@@ -6,6 +6,7 @@ import com.sba301.lostandfound.dto.UpdateStockImageRequest;
 import com.sba301.lostandfound.entity.StockImage;
 import com.sba301.lostandfound.entity.enums.Category;
 import com.sba301.lostandfound.repository.StockImageRepository;
+import com.sba301.lostandfound.service.ImageStorageService;
 import com.sba301.lostandfound.service.StockImageService;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -20,6 +21,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class StockImageServiceImpl implements StockImageService {
 
     private final StockImageRepository stockImageRepository;
+    private final ImageStorageService imageStorageService;
 
     @Override
     @Transactional(readOnly = true)
@@ -48,9 +50,10 @@ public class StockImageServiceImpl implements StockImageService {
     @Override
     @Transactional
     public StockImageResponse create(CreateStockImageRequest request) {
+        String cloudinaryUrl = imageStorageService.uploadFromUrl(request.getImageUrl());
         StockImage stockImage = stockImageRepository.save(StockImage.builder()
                 .category(request.getCategory())
-                .imageUrl(request.getImageUrl())
+                .imageUrl(cloudinaryUrl)
                 .label(request.getLabel())
                 .createdAt(LocalDateTime.now())
                 .build());
@@ -67,7 +70,8 @@ public class StockImageServiceImpl implements StockImageService {
             stockImage.setCategory(request.getCategory());
         }
         if (request.getImageUrl() != null && !request.getImageUrl().isBlank()) {
-            stockImage.setImageUrl(request.getImageUrl());
+            String cloudinaryUrl = imageStorageService.uploadFromUrl(request.getImageUrl());
+            stockImage.setImageUrl(cloudinaryUrl);
         }
         if (request.getLabel() != null) {
             stockImage.setLabel(request.getLabel());

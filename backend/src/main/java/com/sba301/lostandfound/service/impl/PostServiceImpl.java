@@ -578,11 +578,18 @@ public class PostServiceImpl implements PostService {
         }
     }
 
-    private String resizeAndEncodeBase64(MultipartFile image) {
+    private String resizeAndEncodeBase64(byte[] rawBytes) {
         try {
-            java.awt.image.BufferedImage originalImage = javax.imageio.ImageIO.read(image.getInputStream());
-            if (originalImage == null) {
+            if (rawBytes == null || rawBytes.length == 0) {
                 return null;
+            }
+
+            java.awt.image.BufferedImage originalImage = javax.imageio.ImageIO.read(
+                    new java.io.ByteArrayInputStream(rawBytes));
+            if (originalImage == null) {
+                // ImageIO không đọc được format (HEIC, WebP...) → trả raw base64
+                log.warn("ImageIO could not parse image format, using raw base64");
+                return Base64.getEncoder().encodeToString(rawBytes);
             }
 
             int originalWidth = originalImage.getWidth();
@@ -615,11 +622,7 @@ public class PostServiceImpl implements PostService {
             return Base64.getEncoder().encodeToString(imageBytes);
         } catch (Exception exception) {
             log.warn("Failed to resize image, falling back to raw image: {}", exception.getMessage());
-            try {
-                return Base64.getEncoder().encodeToString(image.getBytes());
-            } catch (IOException e) {
-                return null;
-            }
+            return Base64.getEncoder().encodeToString(rawBytes);
         }
     }
 
@@ -629,11 +632,19 @@ public class PostServiceImpl implements PostService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Image is required to generate questions");
         }
 
+        // 0. Đọc bytes 1 lần duy nhất để tránh lỗi stream bị đóng trên server
+        byte[] rawBytes;
+        try {
+            rawBytes = image.getBytes();
+        } catch (IOException e) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to read image bytes");
+        }
+
         // 1. Upload to Cloudinary to get final imageUrl
         String imageUrl = imageStorageService.upload(image);
 
         // 2. Convert and resize image directly to base64
-        String base64Image = resizeAndEncodeBase64(image);
+        String base64Image = resizeAndEncodeBase64(rawBytes);
         if (base64Image == null) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to read image bytes");
         }
@@ -655,11 +666,19 @@ public class PostServiceImpl implements PostService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Image is required to generate description");
         }
 
+        // 0. Đọc bytes 1 lần duy nhất để tránh lỗi stream bị đóng trên server
+        byte[] rawBytes;
+        try {
+            rawBytes = image.getBytes();
+        } catch (IOException e) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to read image bytes");
+        }
+
         // 1. Upload to Cloudinary to get final imageUrl
         String imageUrl = imageStorageService.upload(image);
 
         // 2. Convert and resize image directly to base64
-        String base64Image = resizeAndEncodeBase64(image);
+        String base64Image = resizeAndEncodeBase64(rawBytes);
         if (base64Image == null) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to read image bytes");
         }

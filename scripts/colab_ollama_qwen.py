@@ -7,7 +7,7 @@ TUNNEL_MODE = "named"  # @param ["named", "quick"]
 
 CLOUDFLARE_TOKEN = "eyJhIjoiZmUyY2E0MGM1OWIwNWM4OTM0Y2MxYmFmMjQ4NjI1ZTEiLCJ0IjoiMDAyNjhlZDQtMDkyNi00ZDk0LWJmMzQtOTQxMWQyY2RkZDZlIiwicyI6Ik9UQmtOR0k1TXpndE9URXpNUzAwWXpBM0xUa3lNMlF0T0dabVptWTVZak16T1RSaiJ9"
 
-MODEL_NAME = "qwen2.5vl:3b"  # @param ["qwen2.5:0.5b", "qwen2.5:1.5b", "qwen2.5:3b", "qwen2.5:7b", "qwen2.5:14b", "qwen2.5-coder:7b"]
+MODEL_NAME = "qwen2.5vl:3b"  # @param ["qwen2.5vl:3b", "qwen2.5:1.5b", "qwen2.5:3b", "qwen2.5:7b", "qwen2.5:14b", "qwen2.5-coder:7b"]
 
 OLLAMA_HOST = "0.0.0.0"
 OLLAMA_PORT = 11434

@@ -73,7 +73,7 @@ services:
     api-key: ${CLIP_API_TOKEN:your-secure-api-token-here}
   ollama:
     base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
-    vision-model: ${OLLAMA_VISION_MODEL:qwen2.5vl}
+    vision-model: ${OLLAMA_VISION_MODEL:qwen2.5vl:3b}
     timeout-seconds: 180
     enabled: ${OLLAMA_ENABLED:true}
   cloudinary:

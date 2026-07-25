@@ -1,4 +1,4 @@
-package com.sba301.lostandfound.specification;
+package com.sba301.lostandfound.repository.specification;
 
 import com.sba301.lostandfound.entity.Post;
 import com.sba301.lostandfound.entity.enums.Category;

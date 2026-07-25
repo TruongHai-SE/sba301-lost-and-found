@@ -11,7 +11,7 @@ import com.sba301.lostandfound.entity.enums.PostStatus;
 import com.sba301.lostandfound.repository.PostRepository;
 import com.sba301.lostandfound.service.ImageStorageService;
 import com.sba301.lostandfound.service.SearchService;
-import com.sba301.lostandfound.specification.PostSpecifications;
+import com.sba301.lostandfound.repository.specification.PostSpecifications;
 import com.sba301.lostandfound.util.StringSanitizer;
 import java.util.ArrayList;
 import java.util.List;

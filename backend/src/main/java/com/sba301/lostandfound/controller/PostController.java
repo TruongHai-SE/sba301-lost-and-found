@@ -53,9 +53,6 @@ public class PostController {
         return ResponseEntity.ok(ApiResponse.success(response, "Questions generated successfully"));
     }
 
-    /**
-     * Người dùng CHỦ ĐỘNG bấm nút để AI sinh mô tả từ ảnh (trước khi đăng tin).
-     */
     @PostMapping(value = "/generate-description", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<GenerateDescriptionResponse>> generateDescription(
             @RequestParam("image") MultipartFile image,
@@ -67,39 +64,21 @@ public class PostController {
     /**
      * Search bằng ảnh (multipart/form-data) kết hợp CLIP embedding.
      * Body:
-     *  - image: file ảnh (bắt buộc)
-     *  - description: text mô tả bổ sung (optional)
-     *  - top_k: số kết quả tối đa (optional, default 10)
-     *  - target_type: LOST | FOUND | ALL (optional, default FOUND)
+     * - image: file ảnh (bắt buộc)
+     * - description: text mô tả bổ sung (optional)
+     * - top_k: số kết quả tối đa (optional, default 10)
+     * - target_type: LOST | FOUND | ALL (optional, default FOUND)
      */
     @PostMapping(value = "/search", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<SearchResponse>> searchByImage(
             @RequestPart("image") MultipartFile image,
             @RequestParam(value = "description", required = false) String description,
             @RequestParam(value = "top_k", required = false) Integer topK,
-            @RequestParam(value = "target_type", required = false) String targetType
-    ) {
+            @RequestParam(value = "target_type", required = false) String targetType) {
         SearchResponse result = searchService.searchByImage(image, description, topK, targetType);
         return ResponseEntity.ok(ApiResponse.success(result, "Search completed successfully"));
     }
 
-    /**
-     * Search bằng text (application/json), kết hợp filter (tuỳ chọn).
-     * Body: {
-     *   "text": "...",
-     *   "top_k": 10,
-     *   "target_type": "FOUND",
-     *   "category": "WALLET",
-     *   "district": "Quận 1",
-     *   "date": "2024-01-15",
-     *   "time": "14:30",
-     *   "tag": "da",
-     *   "status": "ACTIVE"
-     * }
-     *
-     * <p>Các trường filter đều optional. Khi truyền, filter áp lên kết quả
-     * CLIP semantic search (mặc định status = ACTIVE nếu không truyền).
-     */
     @PostMapping(value = "/search/text", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<SearchResponse>> searchByText(@RequestBody SearchByTextRequest request) {
         SearchResponse result = searchService.searchByText(request);
@@ -134,7 +113,8 @@ public class PostController {
             @RequestParam(required = false) PostType type,
             @RequestParam(required = false) PostStatus status) {
         Long userId = currentUser.getUser().getId();
-        PageResponse<PostListResponse> response = postService.getUserPosts(page, size, sortBy, sortDir, type, status, userId);
+        PageResponse<PostListResponse> response = postService.getUserPosts(page, size, sortBy, sortDir, type, status,
+                userId);
         return ResponseEntity.ok(ApiResponse.success(response, "Get my posts successfully"));
     }
 
@@ -147,7 +127,8 @@ public class PostController {
             @RequestParam(defaultValue = "DESC") String sortDir,
             @RequestParam(required = false) PostType type,
             @RequestParam(required = false) PostStatus status) {
-        PageResponse<PostListResponse> response = postService.getUserPosts(page, size, sortBy, sortDir, type, status, userId);
+        PageResponse<PostListResponse> response = postService.getUserPosts(page, size, sortBy, sortDir, type, status,
+                userId);
         return ResponseEntity.ok(ApiResponse.success(response, "Get user posts successfully"));
     }
 
@@ -172,10 +153,10 @@ public class PostController {
             @RequestParam(defaultValue = "DESC") String sortDir,
             @RequestParam(required = false) PostType type,
             @RequestParam(required = false) PostStatus status) {
-        PageResponse<PostListResponse> response = postService.filterPosts(filterRequest, page, size, sortBy, sortDir, type, status);
+        PageResponse<PostListResponse> response = postService.filterPosts(filterRequest, page, size, sortBy, sortDir,
+                type, status);
         return ResponseEntity.ok(ApiResponse.success(response, "Filter posts successfully"));
     }
-
 
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<FullPostDetails>> getPostById(

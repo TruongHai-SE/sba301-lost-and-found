@@ -30,7 +30,7 @@ import com.sba301.lostandfound.service.ImageStorageService;
 import com.sba301.lostandfound.service.PostService;
 import com.sba301.lostandfound.service.PostAiEnrichmentService;
 import com.sba301.lostandfound.service.ImageAnalysisService;
-import com.sba301.lostandfound.specification.PostSpecifications;
+import com.sba301.lostandfound.repository.specification.PostSpecifications;
 import org.springframework.web.multipart.MultipartFile;
 import java.util.Optional;
 import java.time.LocalDate;

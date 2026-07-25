@@ -37,13 +37,6 @@ public class OllamaClient {
         this.properties = properties;
     }
 
-    /**
-     * Gửi ảnh + prompt cho Ollama vision model, trả về text mô tả.
-     *
-     * @param imageUrl URL công khai của ảnh (Cloudinary URL)
-     * @param prompt   system + user prompt hướng dẫn model trả lời
-     * @return response text hoặc null nếu lỗi
-     */
     public VisionDescription describeImage(String imageInput, String prompt) {
         if (!properties.enabled()) {
             log.debug("Ollama is disabled by config, skip describeImage");

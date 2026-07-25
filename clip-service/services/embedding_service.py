@@ -155,16 +155,17 @@ class EmbeddingService:
             }
 
         # 1. Check YOLO detected objects (Dynamic Object Detection)
-        # Any detected YOLO class that is NOT 'person' is recognized as a valid physical item
+        # Any detected YOLO class that is NOT 'person' is recognized as a valid physical item/object!
         yolo_classes = self.yolo.detect_classes(img)
         has_detected_item = any(cls != "person" for cls in yolo_classes)
         has_person = "person" in yolo_classes
 
         if has_person and not has_detected_item:
+
             return {
                 "is_valid": False,
                 "reason_code": "PEOPLE",
-                "message": "Hình ảnh chứa mặt người/chân dung. Vui lòng chọn ảnh chụp rõ đồ vật."
+                "message": "Hình ảnh chứa mặt người/chân dung. Vui lòng chọn ảnh chụp rõ món đồ bị mất hoặc nhặt được."
             }
 
         # 2. Only run CLIP zero-shot forbidden prompts for PEOPLE/SELFIE/BLANK
